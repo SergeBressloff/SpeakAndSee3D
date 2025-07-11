@@ -1,0 +1,4 @@
+dist/
+build/
+whisper.cpp/
+stable-point-aware-3d/
