@@ -10,11 +10,8 @@ a = Analysis(
         ("viewer_assets/*", "viewer_assets"),
         ('whisper.cpp/models/ggml-base.en.bin', 'whisper.cpp/models'),
         ('audio', 'audio'),
-        ("venvs/*", "venvs"),
         ("generate_image.py", "."),
-        ("generate_model.py", "."),
         ("venvs/flux_env/bin/python", "_internal/venvs/flux_env/bin"),
-        ("venvs/spa3d_env/bin/python", "_internal/venvs/spa3d_env/bin"),
         ("stable-point-aware-3d/run.py", "stable-point-aware-3d"),
     ],
     hiddenimports = [
