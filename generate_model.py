@@ -1,7 +1,6 @@
 import os
 import subprocess
 import sys
-from utils import resource_path
 
 print("Starting generate_model.py", flush=True)
 
@@ -10,10 +9,22 @@ output_dir = sys.argv[2]
 
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
-python_exe = sys.executable
-run_script = resource_path(os.path.join("stable-point-aware-3d", "run.py"))
+if getattr(sys, 'frozen', False):
+    # Running from a PyInstaller bundle
+    base_path = sys._MEIPASS
+    python_exe = os.path.join(base_path, "venvs", "spa3d_env", "bin", "python")
+else:
+    # Running from source
+    base_path = os.path.dirname(os.path.abspath(__file__))
 
-print("About to run run.py with image:", image_path, "output:", output_dir, flush=True)
+run_script = os.path.join(base_path, "stable-point-aware-3d", "run.py")
+
+print(f"About to run run.py with image: {image_path}, output: {output_dir}", flush=True)
+print(f"Using script at: {run_script}", flush=True)
+print(f"Using interpreter: {python_exe}", flush=True)
+
+if os.path.basename(run_script) == os.path.basename(sys.argv[0]):
+    raise RuntimeError("Detected recursive call to self! Aborting.")
 
 subprocess.run([
     python_exe,
