@@ -14,8 +14,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Speak and See 3D")
         self.setGeometry(200, 200, 400, 300)
 
-        self.transcription_label = QLabel("Speak to see 3D...")
-        self.record_btn = QPushButton("Record & Generate 3D Model")
+        self.transcription_label = QLabel("Press Speak to see in 3D...")
+        self.record_btn = QPushButton("Speak")
 
         self.timer_label = QLabel("")
         self.progress_bar = QProgressBar()
@@ -36,6 +36,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.timer_label)
         layout.addWidget(self.progress_bar)
         layout.addWidget(self.viewer)
+        layout.setStretch(0, 0)  # transcription_label
+        layout.setStretch(1, 0)  # record_btn
+        layout.setStretch(2, 1)  # viewer gets all extra space
 
         container = QWidget()
         container.setLayout(layout)
