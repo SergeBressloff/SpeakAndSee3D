@@ -11,7 +11,6 @@ a = Analysis(
         ('whisper.cpp/models/ggml-base.en.bin', 'whisper.cpp/models'),
         ('audio', 'audio'),
         ("generate_image.py", "."),
-        ("generate_model", "."),
         ("venvs/flux_env/*", "venvs/flux_env"),
     ],
     hiddenimports = [

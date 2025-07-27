@@ -6,14 +6,12 @@ from utils import resource_path
 FLUX_PY = resource_path("venvs/flux_env/bin/python")
 FLUX_SCRIPT = resource_path("generate_image.py")
 
-IS_FROZEN = getattr(sys, 'frozen', False)
-if IS_FROZEN:
-    SPA3D_EXEC = [resource_path("generate_model")]
-else:
-    SPA3D_EXEC = ["/Users/sergebressloff/.pyenv/versions/spa3d_env/bin/python", "generate_model.py"]
+base_dir = os.path.dirname(sys.executable)
+print("base_dir:", base_dir)
 
 def generate_3d_model(prompt: str) -> str:
     output_dir = os.path.abspath("output")
+    print("Resolved output_dir:", output_dir)
     os.makedirs(output_dir, exist_ok=True)
 
     image_path = os.path.join(output_dir, "generated_image.png")
@@ -33,7 +31,11 @@ def generate_3d_model(prompt: str) -> str:
 
     # Call Stable Point Aware 3D model generation
     try:
-        subprocess.run(SPA3D_EXEC + [image_path, output_dir], check=True)
+        subprocess.run([
+            os.path.join(base_dir, "generate_model"),  # No 'python' call
+            image_path,
+            output_dir
+        ], check=True)
     except subprocess.CalledProcessError as e:
         print(f"3D model generation failed: {e}")
         return None
