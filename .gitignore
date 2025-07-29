@@ -4,3 +4,4 @@ whisper.cpp/
 stable-point-aware-3d/
 venvs/
 generate_model
+bin/

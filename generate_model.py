@@ -23,9 +23,6 @@ print(f"About to run run.py with image: {image_path}, output: {output_dir}", flu
 print(f"Using script at: {run_script}", flush=True)
 print(f"Using interpreter: {python_exe}", flush=True)
 
-if os.path.basename(run_script) == os.path.basename(sys.argv[0]):
-    raise RuntimeError("Detected recursive call to self! Aborting.")
-
 subprocess.run([
     python_exe,
     run_script,
