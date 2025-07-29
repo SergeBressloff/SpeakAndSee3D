@@ -1,15 +1,17 @@
 import subprocess
-import os
+import os, sys
 import shutil
 from utils import resource_path
 
-FLUX_PY = "/Users/sergebressloff/.pyenv/versions/flux_env/bin/python"
-SPA3D_PY = "/Users/sergebressloff/.pyenv/versions/spa3d_env/bin/python"
+FLUX_PY = resource_path("venvs/flux_env/bin/python")
 FLUX_SCRIPT = resource_path("generate_image.py")
-SPA3D_SCRIPT = resource_path("generate_model.py")
+
+base_dir = os.path.dirname(sys.executable)
+print("base_dir:", base_dir)
 
 def generate_3d_model(prompt: str) -> str:
     output_dir = os.path.abspath("output")
+    print("Resolved output_dir:", output_dir)
     os.makedirs(output_dir, exist_ok=True)
 
     image_path = os.path.join(output_dir, "generated_image.png")
@@ -30,8 +32,7 @@ def generate_3d_model(prompt: str) -> str:
     # Call Stable Point Aware 3D model generation
     try:
         subprocess.run([
-            SPA3D_PY,
-            SPA3D_SCRIPT,
+            os.path.join(base_dir, "generate_model"),  # No 'python' call
             image_path,
             output_dir
         ], check=True)

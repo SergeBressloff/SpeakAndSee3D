@@ -6,7 +6,7 @@ from utils import resource_path
 
 def record_audio(filename=None, duration=5, samplerate=16000):
     if filename is None:
-        filename = resource_path("audio/recording.wav")
+        filename = resource_path("audio\\recording.wav")
 
     audio_dir = os.path.dirname(filename)
     os.makedirs(audio_dir, exist_ok=True)

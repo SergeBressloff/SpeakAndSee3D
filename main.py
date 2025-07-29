@@ -1,11 +1,10 @@
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QLabel, QProgressBar
 from PySide6.QtCore import QTimer
-from whisper_runner import transcribe_whisper
+from pipeline import Pipeline
 from audio_recorder import record_audio
 from model_viewer import ModelViewer
 from utils import resource_path
-from model_generator import generate_3d_model
-import os, sys, multiprocessing
+import sys, multiprocessing
 import time
 
 class MainWindow(QMainWindow):
@@ -47,35 +46,31 @@ class MainWindow(QMainWindow):
     def handle_record(self):
         self.transcription_label.setText("Recording...")
         record_audio()
+        audio_path = resource_path("audio\\recording.wav")
 
-        self.transcription_label.setText("Transcribing...")
-        text = transcribe_whisper()
-
-        if not text:
-            self.transcription_label.setText("Transcription failed")
-            return
-
-        self.transcription_label.setText(f"Generating 3D model from: {text}")
+        self.transcription_label.setText("Processing...")
 
         # Start timer and progress
         self._start_time = time.time()
         self.elapsed_timer.start(100)
         self.progress_bar.setVisible(True)
 
-        model_path = generate_3d_model(prompt=text)
+        try:
+            pipe = Pipeline()
+            result = pipe.run_pipeline(audio_path)
 
-        # Stop timer/progress
-        self.elapsed_timer.stop()
-        self.progress_bar.setVisible(False)
+            self.transcription_label.setText(f"Model for: {result['text']}")
+            self.viewer.load_model(result['model'])
 
-        if model_path:
-            self.viewer.load_model(model_path)
             total_time = time.time() - self._start_time
-            self.transcription_label.setText(f"Model generated for: {text}")
             self.timer_label.setText(f"Total time: {total_time:.2f} seconds")
-        else:
-            self.transcription_label.setText("Model generation failed")
+        except Exception as e:
+            self.transcription_label.setText("Pipeline failed")
             self.timer_label.setText("")
+            print("[ERROR]", e)
+        finally:
+            self.elapsed_timer.stop()
+            self.progress_bar.setVisible(False)
 
     def update_timer(self):
         if self._start_time:
