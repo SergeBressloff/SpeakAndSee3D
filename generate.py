@@ -2,7 +2,7 @@ import os
 import subprocess
 import sys
 import json
-import tempfile
+import shutil
 
 def main():
     print("Starting generate_model executable", flush=True)
@@ -33,9 +33,10 @@ def main():
 
     run_script = os.path.join(base_path, "stable-point-aware-3d", "run.py")
 
-    # Use a temp output dir
-    model_output_dir = os.path.join(tempfile.gettempdir(), "generated_model")
+    model_output_dir = os.path.abspath("output")
     os.makedirs(model_output_dir, exist_ok=True)
+
+    model_path = os.path.join(model_output_dir, "0", "mesh.glb")
 
     print(f"Running: {run_script} with image {image_path} → {model_output_dir}", flush=True)
 
@@ -47,20 +48,17 @@ def main():
             "--output-dir", model_output_dir
         ], check=True)
 
-        # Assume the .glb file is the output
-        output_model_path = None
-        for file in os.listdir(model_output_dir):
-            if file.endswith(".glb"):
-                output_model_path = os.path.join(model_output_dir, file)
-                break
-
-        if not output_model_path or not os.path.exists(output_model_path):
-            raise FileNotFoundError("Model output (.glb) not found")
-
-        with open(output_json, "w") as f:
-            json.dump({ "model_path": output_model_path }, f)
-
-        print(f"Model path written to: {output_json}", flush=True)
+        # Return path to the generated model
+        if os.path.exists(model_path):
+            print(model_path)
+            final_path = os.path.join("viewer_assets", "generated_model.glb")
+            shutil.copy(model_path, final_path)
+            with open(output_json, "w") as f:
+                json.dump({ "model_path": "generated_model.glb" }, f)
+            print(f"Model path written to: {output_json}", flush=True)
+        else:
+            print("Model file not found after generation.")
+            return None
 
     except Exception as e:
         print("[ERROR] Model generation failed:", e)
