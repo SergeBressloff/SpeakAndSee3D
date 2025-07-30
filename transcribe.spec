@@ -4,11 +4,10 @@
 a = Analysis(
     ['transcribe.py'],
     pathex=[],
-    binaries=[('whisper.cpp/build/bin/Release/whisper-cli.exe', 'whisper.cpp/build/bin'),],
+    binaries=[('whisper.cpp/build/bin/Release/whisper-cli.exe', 'whisper.cpp/build/bin/Release'),],
     datas=[
         ('whisper.cpp/models/ggml-base.en.bin', 'whisper.cpp/models'),
     ],
-    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

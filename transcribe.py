@@ -26,31 +26,25 @@ def main():
     else:
         base_path = os.path.dirname(os.path.abspath(__file__))
 
-    whisper_bin = os.path.join(base_path, "whisper.cpp", "build", "bin", "whisper-cli.exe")
+    whisper_bin = os.path.join(base_path, "whisper.cpp", "build", "bin", "Release", "whisper-cli.exe")
     model_path = os.path.join(base_path, "whisper.cpp", "models", "ggml-base.en.bin")
 
     print(f"Running whisper-cli on: {audio_path}", flush=True)
 
     try:
-        print("first")
         subprocess.run([
             whisper_bin,
             "-m", model_path,
             "-f", audio_path,
             "-otxt"
         ], check=True)
-        print("second")
 
         txt_path = audio_path + ".txt"
         if not os.path.exists(txt_path):
             raise FileNotFoundError(f"Expected output not found: {txt_path}")
 
-        print("third")
-        try:
-            with open(txt_path, "r") as f:
-                transcription = f.read().strip()
-        except:
-            print("fourth")
+        with open(txt_path, "r") as f:
+            transcription = f.read().strip()
 
         with open(output_json, "w") as f:
             json.dump({ "transcription": transcription }, f)

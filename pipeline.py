@@ -49,7 +49,4 @@ class Pipeline:
 
             subprocess.run([exe, infile.name, outfile.name], check=True)
             
-            try:
-                return json.load(outfile)
-            except:
-                print("fifth")
+            return json.load(outfile)
