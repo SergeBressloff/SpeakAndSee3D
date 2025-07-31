@@ -5,10 +5,7 @@ a = Analysis(
     ['diffuse.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        ('venvs/flux_env/*', 'venvs/flux_env'),
-        ('run_flux.py', '.')
-    ],
+    datas=[],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

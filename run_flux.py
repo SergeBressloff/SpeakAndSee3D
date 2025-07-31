@@ -1,24 +1,44 @@
 import torch
-from diffusers import FluxPipeline
+from diffusers import StableDiffusionPipeline
 import sys
+import os
 
 prompt = sys.argv[1]
 output_path = sys.argv[2]
 
-# local_model_path = "./models/flux_1_schnell"          to download model into project
+# Get the base directory of the executable (diffuse.exe inside bin/)
+if getattr(sys, 'frozen', False):
+    base_path = os.path.dirname(sys.executable)
+else:
+    base_path = os.path.dirname(os.path.abspath(__file__))
 
-pipe = FluxPipeline.from_pretrained(
-    "black-forest-labs/FLUX.1-schnell",
-    # cache_dir=local_model_path,                       to download model into project
-    torch_dtype=torch.bfloat16)
-pipe.to("mps" if torch.mps.is_available() else "cpu")
+# Go up one level from bin/ to project/
+project_root = os.path.dirname(base_path)
 
+local_model_path = os.path.join(
+    project_root,
+    "models",
+    "dreamshaper",
+    "models--SimianLuo--LCM_Dreamshaper_v7",
+    "snapshots",
+    "a85df6a8bd976cdd08b4fd8f3b73f229c9e54df5"
+)
+
+pipe = StableDiffusionPipeline.from_pretrained(
+    local_model_path,
+    torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+    local_files_only=True
+)
+
+device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
+pipe.to(device)
+
+# Inference settings
 image = pipe(
-    prompt,
-    guidance_scale=0.0,
-    num_inference_steps=4,
-    max_sequence_length=256,
-    generator=torch.Generator("mps").manual_seed(0)
+    prompt=prompt,
+    num_inference_steps=10,
+    guidance_scale=1.5,
+    generator=torch.Generator(device).manual_seed(0)
 ).images[0]
+
 image.save(output_path)
-print(f"Image saved to {output_path}")

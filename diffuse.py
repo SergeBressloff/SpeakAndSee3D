@@ -29,12 +29,16 @@ def main():
 
     if getattr(sys, 'frozen', False):
         base_path = sys._MEIPASS
-        python_exe = os.path.join(base_path, "venvs", "flux_env", "bin", "python")
     else:
         base_path = os.path.dirname(os.path.abspath(__file__))
-        python_exe = sys.executable
+    
+    python_exe = "python"
+
+    print("Base Path: ", base_path)
+    print("Python Exe: ", python_exe)
 
     run_script = os.path.join(base_path, "run_flux.py")
+    print("Run Script: ", run_script)
 
     print(f"Running run_flux.py with prompt: '{prompt}', output: {output_image_path}", flush=True)
 

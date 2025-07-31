@@ -3,8 +3,8 @@ from utils import resource_path
 
 BIN_DIR = resource_path("bin")
 TRANSCRIBE_BIN = os.path.join(BIN_DIR, "transcribe.exe")
-DIFFUSE_BIN = os.path.join(BIN_DIR, "diffuse")
-GENERATE_BIN = os.path.join(BIN_DIR, "generate")
+DIFFUSE_BIN = os.path.join(BIN_DIR, "diffuse.exe")
+GENERATE_BIN = os.path.join(BIN_DIR, "generate.exe")
 
 class Pipeline:
     def run_pipeline(self, audio_path):
@@ -13,6 +13,7 @@ class Pipeline:
             transcribe_input = { "audio_path": audio_path }
             transcribe_output = self.run_stage(TRANSCRIBE_BIN, transcribe_input)
             text = transcribe_output.get("transcription")
+            print(text)
 
             if not text:
                 raise RuntimeError("Transcription failed")
