@@ -6,7 +6,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
-        ('venvs/flux_env/*', 'venvs/flux_env'),
+        ('../stable_env/*', 'venvs/stable_env'),
         ('run_flux.py', '.')
     ],
     hiddenimports=[],

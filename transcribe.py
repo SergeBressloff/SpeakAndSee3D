@@ -26,8 +26,15 @@ def main():
     else:
         base_path = os.path.dirname(os.path.abspath(__file__))
 
-    whisper_bin = os.path.join(base_path, "whisper.cpp", "build", "bin", "Release", "whisper-cli.exe")
-    model_path = os.path.join(base_path, "whisper.cpp", "models", "ggml-base.en.bin")
+    whisper_bin = os.path.join(base_path, "whisper-cli.exe")
+    model_path = os.path.join(base_path, "ggml-base.en.bin")
+
+    dlls = [
+        os.path.join(base_path, "whisper.dll"),
+        os.path.join(base_path, "ggml.dll"),
+        os.path.join(base_path, "ggml-base.dll"),
+        os.path.join(base_path, "ggml-cpu.dll"),
+    ]
 
     print(f"Running whisper-cli on: {audio_path}", flush=True)
 

@@ -8,40 +8,52 @@ def main():
     print("Starting diffuse executable", flush=True)
 
     if len(sys.argv) != 3:
-        print("Usage: diffuse <input_json> <output_json>")
+        print("Usage: diffuse <input_json> <output_json>", flush=True)
         sys.exit(1)
 
     input_json = sys.argv[1]
     output_json = sys.argv[2]
 
+    
     with open(input_json, "r") as f:
         input_data = json.load(f)
 
     prompt = input_data.get("prompt")
     if not prompt:
-        print("No prompt found in input JSON", flush=True)
-        sys.exit(1)
+        raise ValueError("No prompt found in input JSON")
 
-    # Temp output path for the image
-    output_image_path = os.path.join(tempfile.gettempdir(), "generated_image.png")
-
-    os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-
+    # Determine base path for model
     if getattr(sys, 'frozen', False):
-        base_path = sys._MEIPASS
-        python_exe = os.path.join(base_path, "venvs", "flux_env", "bin", "python")
+        model_base_path = os.path.dirname(sys.executable)
     else:
-        base_path = os.path.dirname(os.path.abspath(__file__))
-        python_exe = sys.executable
+        model_base_path = os.path.dirname(os.path.abspath(__file__))
 
-    run_script = os.path.join(base_path, "run_flux.py")
+    model_name = input_data.get("model_name", "onnx-stable-diffusion-2-1")
+    model_path = os.path.join(model_base_path, "models", model_name)
 
-    print(f"Running run_flux.py with prompt: '{prompt}', output: {output_image_path}", flush=True)
+    # Determine base path for environment
+    if getattr(sys, 'frozen', False):
+        env_base_path = sys._MEIPASS
+        python_env = os.path.join(env_base_path, "venvs", "stable_env", "Scripts", "python.exe")
+    else:
+        env_base_path = os.path.dirname(os.path.abspath(__file__))
+        python_env = os.path.join(env_base_path, "venvs", "stable_env", "Scripts", "python.exe")
+
+    print(f"[DEBUG] Using Python: {python_env}", flush=True)
+
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Model directory not found: {model_path}")
+
+    output_image_path = os.path.join(tempfile.gettempdir(), "generated_image.png")
+    run_script = os.path.join(env_base_path, "run_flux.py")
+
+    print(f"Running run_flux.py with prompt '{prompt}', output: {output_image_path}", flush=True)
 
     try:
         subprocess.run([
-            python_exe,
+            python_env,
             run_script,
+            model_path,
             prompt,
             output_image_path
         ], check=True)
@@ -50,14 +62,14 @@ def main():
             raise FileNotFoundError("Image not generated")
 
         with open(output_json, "w") as f:
-            json.dump({ "image_path": output_image_path }, f)
+            json.dump({"image_path": output_image_path}, f)
 
         print(f"Image path written to: {output_json}", flush=True)
 
     except Exception as e:
-        print("[ERROR] Diffusion failed:", e)
+        print("[ERROR] Diffusion failed:", e, flush=True)
         with open(output_json, "w") as f:
-            json.dump({ "error": str(e) }, f)
+            json.dump({"error": str(e)}, f)
         sys.exit(1)
 
 if __name__ == "__main__":
