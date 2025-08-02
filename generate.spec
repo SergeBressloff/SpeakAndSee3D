@@ -6,8 +6,9 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
-        ('stable-point-aware-3d/*', 'stable-point-aware-3d'),
-        ('venvs/spa3d_env/*', 'venvs/spa3d_env'),
+        ('TripoSR/run.py', 'TripoSR'),
+        ('TripoSR/tsr/*', 'TripoSR/tsr'),
+        ('venvs/tripo_env/*', 'venvs/tripo_env'),
     ],
     hiddenimports=[],
     hookspath=[],

@@ -6,3 +6,4 @@ venvs/
 generate_model
 bin/
 models/
+TripoSR

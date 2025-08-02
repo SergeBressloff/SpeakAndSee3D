@@ -16,7 +16,7 @@ pipe.to(device)
 
 image = pipe(
     prompt=prompt,
-    num_inference_steps=25,
+    num_inference_steps=20,
     guidance_scale=1.5,
     generator=torch.Generator(device).manual_seed(0)
 ).images[0]

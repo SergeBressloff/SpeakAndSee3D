@@ -13,7 +13,6 @@ def main():
 
     input_json = sys.argv[1]
     output_json = sys.argv[2]
-
     
     with open(input_json, "r") as f:
         input_data = json.load(f)
@@ -40,10 +39,10 @@ def main():
     # Determine base path for environment
     if getattr(sys, 'frozen', False):
         env_base_path = sys._MEIPASS
-        python_env = os.path.join(env_base_path, "venvs", "stable_env", "Scripts", "python.exe")
     else:
         env_base_path = os.path.dirname(os.path.abspath(__file__))
-        python_env = os.path.join(env_base_path, "venvs", "stable_env", "Scripts", "python.exe")
+
+    python_env = os.path.join(env_base_path, "venvs", "stable_env", "Scripts", "python.exe")
 
     print(f"[DEBUG] Using Python: {python_env}", flush=True)
 
