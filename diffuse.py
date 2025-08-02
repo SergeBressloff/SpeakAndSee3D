@@ -29,6 +29,12 @@ def main():
         model_base_path = os.path.dirname(os.path.abspath(__file__))
 
     model_name = input_data.get("model_name", "onnx-stable-diffusion-2-1")
+    
+    if model_name == "flux_1_schnell":
+        model_name = os.path.join(model_name, "models--black-forest-labs--Flux.1-schnell")
+    elif model_name == "LCM_Dreamshaper_v7":
+        model_name = os.path.join("dreamshaper", f"SimianLuo/{model_name}")
+
     model_path = os.path.join(model_base_path, "models", model_name)
 
     # Determine base path for environment
@@ -45,7 +51,13 @@ def main():
         raise FileNotFoundError(f"Model directory not found: {model_path}")
 
     output_image_path = os.path.join(tempfile.gettempdir(), "generated_image.png")
-    run_script = os.path.join(env_base_path, "run_flux.py")
+
+    if model_name.startswith("flux"):
+        run_script = os.path.join(env_base_path, "run_flux.py")
+    elif model_name.startswith("dream"):
+        run_script = os.path.join(env_base_path, "run_dreamshaper.py")
+    elif model_name.startswith("onnx"):
+        run_script = os.path.join(env_base_path, "run_onnx.py")
 
     print(f"Running run_flux.py with prompt '{prompt}', output: {output_image_path}", flush=True)
 
