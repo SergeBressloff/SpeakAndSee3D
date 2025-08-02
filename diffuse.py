@@ -30,9 +30,9 @@ def main():
     model_name = input_data.get("model_name", "onnx-stable-diffusion-2-1")
     
     if model_name == "flux_1_schnell":
-        model_name = os.path.join(model_name, "models--black-forest-labs--Flux.1-schnell")
+        model_name = os.path.join(model_name, "models--black-forest-labs--Flux.1-schnell", "snapshots", "741f7c3ce8b383c54771c7003378a50191e9efe9")
     elif model_name == "LCM_Dreamshaper_v7":
-        model_name = os.path.join("dreamshaper", f"SimianLuo/{model_name}")
+        model_name = os.path.join("dreamshaper", f"models--SimianLuo--{model_name}", "snapshots", "a85df6a8bd976cdd08b4fd8f3b73f229c9e54df5")
 
     model_path = os.path.join(model_base_path, "models", model_name)
 

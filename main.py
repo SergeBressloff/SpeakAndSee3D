@@ -1,4 +1,13 @@
-from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QLabel, QProgressBar
+from PySide6.QtWidgets import (
+    QApplication, 
+    QMainWindow, 
+    QPushButton, 
+    QVBoxLayout, 
+    QWidget, 
+    QLabel, 
+    QProgressBar,
+    QComboBox
+)
 from PySide6.QtCore import QTimer
 from pipeline import Pipeline
 from audio_recorder import record_audio
@@ -16,6 +25,13 @@ class MainWindow(QMainWindow):
         self.transcription_label = QLabel("Press Speak to see in 3D...")
         self.record_btn = QPushButton("Speak")
 
+        self.model_dropdown = QComboBox()
+        self.model_dropdown.addItems([
+            "onnx-stable-diffusion-2-1",
+            "flux_1_schnell",
+            "LCM_Dreamshaper_v7"
+        ])
+
         self.timer_label = QLabel("")
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 0)  # Indeterminate progress
@@ -32,12 +48,14 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout()
         layout.addWidget(self.transcription_label)
         layout.addWidget(self.record_btn)
+        layout.addWidget(self.model_dropdown)
         layout.addWidget(self.timer_label)
         layout.addWidget(self.progress_bar)
         layout.addWidget(self.viewer)
         layout.setStretch(0, 0)  # transcription_label
         layout.setStretch(1, 0)  # record_btn
-        layout.setStretch(2, 1)  # viewer gets all extra space
+        layout.setStretch(2, 0)  # model_dropdown
+        layout.setStretch(3, 1)  # viewer gets all extra space
 
         container = QWidget()
         container.setLayout(layout)
@@ -57,7 +75,9 @@ class MainWindow(QMainWindow):
 
         try:
             pipe = Pipeline()
-            result = pipe.run_pipeline(audio_path)
+            model_name = self.model_dropdown.currentText().strip()
+            print("Model name: ", model_name)
+            result = pipe.run_pipeline(audio_path, model_name)
 
             self.transcription_label.setText(f"Model for: {result['text']}")
             self.viewer.load_model(result['model'])

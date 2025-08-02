@@ -22,6 +22,15 @@ def main():
         print(f"[ERROR] Invalid or missing image path: {image_path}", flush=True)
         sys.exit(1)
 
+    # Determine base path for model
+    if getattr(sys, 'frozen', False):
+        model_base_path = os.path.dirname(sys.executable)
+    else:
+        cwd = os.path.dirname(os.path.abspath(__file__))
+        model_base_path = os.path.join(cwd, "bin")
+    model_path = os.path.join(model_base_path, "models", "TripoSR")
+    print(model_path)
+
     if getattr(sys, 'frozen', False):
         base_path = sys._MEIPASS
     else:
@@ -34,7 +43,7 @@ def main():
     model_output_dir = os.path.abspath("output")
     os.makedirs(model_output_dir, exist_ok=True)
 
-    model_path = os.path.join(model_output_dir, "0", "mesh.obj")
+    obj_model_path = os.path.join(model_output_dir, "0", "mesh.obj")
 
     print("python_exe: ", python_exe)
     print(f"Running: {run_script} with image {image_path} → {model_output_dir}", flush=True)
@@ -45,15 +54,16 @@ def main():
             python_exe,
             run_script,
             image_path,
+            "--pretrained-model-name-or-path", model_path,
             "--output-dir", model_output_dir
         ], check=True)
         print("after subprocess")
 
         # Return path to the generated model
-        if os.path.exists(model_path):
-            print(model_path)
+        if os.path.exists(obj_model_path):
+            print(obj_model_path)
             final_path = os.path.join("viewer_assets", "generated_model.obj")
-            shutil.copy(model_path, final_path)
+            shutil.copy(obj_model_path, final_path)
             with open(output_json, "w") as f:
                 json.dump({ "model_path": "generated_model.obj" }, f)
             print(f"Model path written to: {output_json}", flush=True)

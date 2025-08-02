@@ -11,7 +11,11 @@ pipe = FluxPipeline.from_pretrained(
     torch_dtype=torch.bfloat16
 )
 
-device = "mps" if torch.backend.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
+device = (
+    "mps" if hasattr(torch, "backends") and torch.backends.mps.is_available()
+    else "cuda" if torch.cuda.is_available()
+    else "cpu"
+)
 pipe.to(device)
 
 image = pipe(

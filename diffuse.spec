@@ -7,7 +7,9 @@ a = Analysis(
     binaries=[],
     datas=[
         ('../stable_env/*', 'venvs/stable_env'),
-        ('run_flux.py', '.')
+        ('run_flux.py', '.'),
+        ('run_onnx.py', '.'),
+        ('run_dreamshaper.py', '.')
     ],
     hiddenimports=[],
     hookspath=[],

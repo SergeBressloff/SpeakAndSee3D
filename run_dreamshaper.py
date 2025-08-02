@@ -7,11 +7,15 @@ prompt = sys.argv[2]
 output_path = sys.argv[3]
 
 pipe = StableDiffusionPipeline.from_pretrained(
-    model_path,  # os.path.join("dreamshaper", "SimianLuo/LCM_Dreamshaper_v7")
+    model_path,
     torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
 )
 
-device = "mps" if torch.backend.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
+device = (
+    "mps" if hasattr(torch, "backends") and torch.backends.mps.is_available()
+    else "cuda" if torch.cuda.is_available()
+    else "cpu"
+)
 pipe.to(device)
 
 image = pipe(

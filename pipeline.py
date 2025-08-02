@@ -3,11 +3,11 @@ from utils import resource_path
 
 BIN_DIR = resource_path("bin")
 TRANSCRIBE_BIN = os.path.join(BIN_DIR, "transcribe.exe")
-DIFFUSE_BIN = os.path.join(BIN_DIR, "diffuse")
-GENERATE_BIN = os.path.join(BIN_DIR, "generate")
+DIFFUSE_BIN = os.path.join(BIN_DIR, "diffuse.exe")
+GENERATE_BIN = os.path.join(BIN_DIR, "generate.exe")
 
 class Pipeline:
-    def run_pipeline(self, audio_path):
+    def run_pipeline(self, audio_path, model_name="onnx-stable-diffusion-2-1"):
         with tempfile.TemporaryDirectory() as tmpdir:
             # Step 1: Transcribe
             transcribe_input = { "audio_path": audio_path }
@@ -18,7 +18,10 @@ class Pipeline:
                 raise RuntimeError("Transcription failed")
 
             # Step 2: Diffuse image
-            diffuse_input = { "prompt": text }
+            diffuse_input = { 
+                "prompt": text,
+                "model_name": model_name 
+            }
             diffuse_output = self.run_stage(DIFFUSE_BIN, diffuse_input)
             image_path = diffuse_output.get("image_path")
 

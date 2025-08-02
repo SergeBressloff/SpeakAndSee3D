@@ -71,6 +71,10 @@ function centerAndPositionModel(model) {
     const size = box.getSize(new THREE.Vector3()).length();
     const center = box.getCenter(new THREE.Vector3());
 
+    // rotate model
+    model.rotation.x = -Math.PI / 2;
+    model.rotation.z = -Math.PI;
+
     model.position.sub(center);
     camera.position.set(0, 0, size * 0.8);
     camera.lookAt(0, 0, 0);
