@@ -5,12 +5,19 @@ from PySide6.QtWidgets import (
     QVBoxLayout, 
     QWidget, 
     QLabel, 
-    QProgressBar,
-    QComboBox
+    QComboBox,
+    QLineEdit, 
+    QHBoxLayout, 
+    QSizePolicy, 
+    QSpacerItem, 
+    QFileDialog, 
+    QFileDialog, 
+    QInputDialog
 )
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QFont
 from pipeline import Pipeline
-from audio_recorder import record_audio
+from audio_recorder import AudioRecorder
 from model_viewer import ModelViewer
 from utils import resource_path, get_writable_viewer_assets
 import os, sys, multiprocessing, shutil
@@ -22,11 +29,43 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Speak and See 3D")
-        self.setGeometry(200, 200, 400, 300)
+        self.setGeometry(600, 600, 600, 500)
 
-        self.transcription_label = QLabel("Press Speak to see in 3D...")
-        self.record_btn = QPushButton("Speak")
+        # Title
+        self.title = QLabel("Speak & See 3D")
+        font = QFont()
+        font.setPointSize(24)
+        font.setBold(True)
+        self.title.setFont(font)
+        self.title.setAlignment(Qt.AlignCenter)
 
+        # Instruction
+        self.transcription_label = QLabel("Describe a 3D model by speaking or typing")
+        self.transcription_label.setAlignment(Qt.AlignCenter)
+
+        # Input Row: Voice + Text
+        self.record_btn = QPushButton("🎙️ Speak")
+        self.record_btn.setToolTip("Use your voice to describe the model")
+        self.is_recording = False
+        self.audio_recorder = AudioRecorder()
+        self.record_btn.clicked.connect(self.toggle_recording)
+
+        self.text_input = QLineEdit()
+        self.text_input.setPlaceholderText("e.g., 3D model of a dinosaur")
+        self.text_input.setMinimumWidth(240)
+
+        self.search_btn = QPushButton("🔍 Search")
+        self.search_btn.setToolTip("Search for a model using the typed description")
+        self.search_btn.clicked.connect(self.handle_text_input)
+
+        input_row_layout = QHBoxLayout()
+        input_row_layout.addWidget(self.record_btn)
+        input_row_layout.addSpacing(20)
+        input_row_layout.addWidget(self.text_input)
+        input_row_layout.addWidget(self.search_btn)
+        input_row_layout.addStretch()
+
+        # Model Dropdown
         self.model_dropdown = QComboBox()
         self.model_dropdown.addItems([
             "onnx-stable-diffusion-2-1",
@@ -34,31 +73,41 @@ class MainWindow(QMainWindow):
             "LCM_Dreamshaper_v7"
         ])
 
+        # Timer
         self.timer_label = QLabel("")
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setRange(0, 0)  # Indeterminate progress
-        self.progress_bar.setVisible(False)
         self.elapsed_timer = QTimer()
         self.elapsed_timer.timeout.connect(self.update_timer)
         self._start_time = None  # Store start time
 
-        self.record_btn.clicked.connect(self.handle_record)
-
-        # Placeholder path
+        # Message & Viewer
+        self.message = QLabel("")
         self.viewer = ModelViewer()
+        self.selector = ModelSelector()
 
+        # Set button sizes
+        self.record_btn.setFixedWidth(100)
+        self.search_btn.setFixedWidth(100)
+        self.upload_btn.setFixedWidth(140)
+
+        # === Main Layout ===
         layout = QVBoxLayout()
+        layout.addWidget(self.title)
         layout.addWidget(self.transcription_label)
-        layout.addWidget(self.record_btn)
-        layout.addWidget(self.model_dropdown)
-        layout.addWidget(self.timer_label)
-        layout.addWidget(self.progress_bar)
+        layout.addLayout(input_row_layout)
+        layout.addWidget(self.upload_btn)
+        layout.addWidget(self.message)
         layout.addWidget(self.viewer)
-        layout.setStretch(0, 0)  # transcription_label
-        layout.setStretch(1, 0)  # record_btn
-        layout.setStretch(2, 0)  # model_dropdown
-        layout.setStretch(3, 1)  # viewer gets all extra space
 
+        # Stretching behavior
+        layout.setStretch(0, 0)  # title
+        layout.setStretch(1, 0)  # instructions
+        layout.setStretch(2, 0)  # input row
+        layout.setStretch(3, 0)  # model dropdown
+        layout.setStretch(4, 0)  # timer
+        layout.setStretch(5, 0)  # message
+        layout.setStretch(6, 1)  # viewer
+
+        # Set as central widget
         container = QWidget()
         container.setLayout(layout)
         self.setCentralWidget(container)
@@ -71,10 +120,9 @@ class MainWindow(QMainWindow):
 
         self.transcription_label.setText("Processing...")
 
-        # Start timer and progress
+        # Start timer
         self._start_time = time.time()
         self.elapsed_timer.start(100)
-        self.progress_bar.setVisible(True)
 
         try:
             pipe = Pipeline()
@@ -93,7 +141,6 @@ class MainWindow(QMainWindow):
             print("[ERROR]", e)
         finally:
             self.elapsed_timer.stop()
-            self.progress_bar.setVisible(False)
 
     def update_timer(self):
         if self._start_time:
