@@ -9,6 +9,7 @@ def record_audio(filename=None, duration=5, samplerate=16000):
         filename = resource_path("audio\\recording.wav")
 
     audio_dir = os.path.dirname(filename)
+    print(audio_dir)
     os.makedirs(audio_dir, exist_ok=True)
 
     print("Recording...")

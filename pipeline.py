@@ -1,16 +1,25 @@
-import subprocess, tempfile, json, os
-from utils import resource_path
+import subprocess, tempfile, json, os, sys
 
-BIN_DIR = resource_path("bin")
-TRANSCRIBE_BIN = os.path.join(BIN_DIR, "transcribe.exe")
-DIFFUSE_BIN = os.path.join(BIN_DIR, "diffuse.exe")
-GENERATE_BIN = os.path.join(BIN_DIR, "generate.exe")
+# Determine base path
+if getattr(sys, 'frozen', False):
+    base_path = os.path.dirname(sys.executable)
+else:
+    cwd = os.path.dirname(os.path.abspath(__file__))
+    base_path = os.path.join(cwd, "bin")
+print("Base path:", base_path)
+
+TRANSCRIBE_BIN = os.path.join(base_path, "transcribe.exe")
+DIFFUSE_BIN = os.path.join(base_path, "diffuse.exe")
+GENERATE_BIN = os.path.join(base_path, "generate.exe")
 
 class Pipeline:
     def run_pipeline(self, audio_path, model_name="onnx-stable-diffusion-2-1"):
+        print("Running pipeline")
         with tempfile.TemporaryDirectory() as tmpdir:
             # Step 1: Transcribe
             transcribe_input = { "audio_path": audio_path }
+            print("Audio path:", audio_path)
+            print("Transcribe bin:", TRANSCRIBE_BIN)
             transcribe_output = self.run_stage(TRANSCRIBE_BIN, transcribe_input)
             text = transcribe_output.get("transcription")
 
@@ -24,6 +33,7 @@ class Pipeline:
             }
             diffuse_output = self.run_stage(DIFFUSE_BIN, diffuse_input)
             image_path = diffuse_output.get("image_path")
+            print("Image path:", image_path)
 
             if not os.path.exists(image_path):
                 raise RuntimeError("Image generation failed")
@@ -32,6 +42,7 @@ class Pipeline:
             generate_input = { "image_path": image_path }
             generate_output = self.run_stage(GENERATE_BIN, generate_input)
             model_path = generate_output.get("model_path")
+            print("Model path:", model_path)
 
             # REMEMBER, generate is returning just generated_model.glb instead of the whole file path. Need to change this.
             # if not os.path.exists(model_path):

@@ -3,6 +3,9 @@ import subprocess
 import sys
 import json
 import shutil
+from utils import get_writable_viewer_assets
+
+VIEWER_ASSETS_DIR = get_writable_viewer_assets()
 
 def main():
     print("Starting generate executable", flush=True)
@@ -61,8 +64,8 @@ def main():
 
         # Return path to the generated model
         if os.path.exists(obj_model_path):
-            print(obj_model_path)
-            final_path = os.path.join("viewer_assets", "generated_model.obj")
+            print("Object model path:", obj_model_path)
+            final_path = os.path.join(VIEWER_ASSETS_DIR, "generated_model.obj")
             shutil.copy(obj_model_path, final_path)
             with open(output_json, "w") as f:
                 json.dump({ "model_path": "generated_model.obj" }, f)
@@ -79,4 +82,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

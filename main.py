@@ -12,9 +12,11 @@ from PySide6.QtCore import QTimer
 from pipeline import Pipeline
 from audio_recorder import record_audio
 from model_viewer import ModelViewer
-from utils import resource_path
-import sys, multiprocessing
+from utils import resource_path, get_writable_viewer_assets
+import os, sys, multiprocessing, shutil
 import time
+
+VIEWER_ASSETS_DIR = get_writable_viewer_assets()
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -43,7 +45,7 @@ class MainWindow(QMainWindow):
         self.record_btn.clicked.connect(self.handle_record)
 
         # Placeholder path
-        self.viewer = ModelViewer(resource_path("viewer_assets/lion.glb"))
+        self.viewer = ModelViewer()
 
         layout = QVBoxLayout()
         layout.addWidget(self.transcription_label)
@@ -65,6 +67,7 @@ class MainWindow(QMainWindow):
         self.transcription_label.setText("Recording...")
         record_audio()
         audio_path = resource_path("audio\\recording.wav")
+        print("Audio path: ", audio_path)
 
         self.transcription_label.setText("Processing...")
 
