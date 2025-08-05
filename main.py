@@ -1,12 +1,22 @@
-from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QLabel, QProgressBar
+from PySide6.QtWidgets import (
+    QApplication, 
+    QMainWindow, 
+    QPushButton, 
+    QVBoxLayout, 
+    QWidget, 
+    QLabel, 
+    QProgressBar,
+    QComboBox
+)
 from PySide6.QtCore import QTimer
-from whisper_runner import transcribe_whisper
+from pipeline import Pipeline
 from audio_recorder import record_audio
 from model_viewer import ModelViewer
-from utils import resource_path
-from model_generator import generate_3d_model
-import os, sys, multiprocessing
+from utils import resource_path, get_writable_viewer_assets
+import os, sys, multiprocessing, shutil
 import time
+
+VIEWER_ASSETS_DIR = get_writable_viewer_assets()
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -16,6 +26,13 @@ class MainWindow(QMainWindow):
 
         self.transcription_label = QLabel("Press Speak to see in 3D...")
         self.record_btn = QPushButton("Speak")
+
+        self.model_dropdown = QComboBox()
+        self.model_dropdown.addItems([
+            "onnx-stable-diffusion-2-1",
+            "flux_1_schnell",
+            "LCM_Dreamshaper_v7"
+        ])
 
         self.timer_label = QLabel("")
         self.progress_bar = QProgressBar()
@@ -28,17 +45,19 @@ class MainWindow(QMainWindow):
         self.record_btn.clicked.connect(self.handle_record)
 
         # Placeholder path
-        self.viewer = ModelViewer(resource_path("viewer_assets/lion.glb"))
+        self.viewer = ModelViewer()
 
         layout = QVBoxLayout()
         layout.addWidget(self.transcription_label)
         layout.addWidget(self.record_btn)
+        layout.addWidget(self.model_dropdown)
         layout.addWidget(self.timer_label)
         layout.addWidget(self.progress_bar)
         layout.addWidget(self.viewer)
         layout.setStretch(0, 0)  # transcription_label
         layout.setStretch(1, 0)  # record_btn
-        layout.setStretch(2, 1)  # viewer gets all extra space
+        layout.setStretch(2, 0)  # model_dropdown
+        layout.setStretch(3, 1)  # viewer gets all extra space
 
         container = QWidget()
         container.setLayout(layout)
@@ -47,35 +66,34 @@ class MainWindow(QMainWindow):
     def handle_record(self):
         self.transcription_label.setText("Recording...")
         record_audio()
+        audio_path = resource_path("audio\\recording.wav")
+        print("Audio path: ", audio_path)
 
-        self.transcription_label.setText("Transcribing...")
-        text = transcribe_whisper()
-
-        if not text:
-            self.transcription_label.setText("Transcription failed")
-            return
-
-        self.transcription_label.setText(f"Generating 3D model from: {text}")
+        self.transcription_label.setText("Processing...")
 
         # Start timer and progress
         self._start_time = time.time()
         self.elapsed_timer.start(100)
         self.progress_bar.setVisible(True)
 
-        model_path = generate_3d_model(prompt=text)
+        try:
+            pipe = Pipeline()
+            model_name = self.model_dropdown.currentText().strip()
+            print("Model name: ", model_name)
+            result = pipe.run_pipeline(audio_path, model_name)
 
-        # Stop timer/progress
-        self.elapsed_timer.stop()
-        self.progress_bar.setVisible(False)
+            self.transcription_label.setText(f"Model for: {result['text']}")
+            self.viewer.load_model(result['model'])
 
-        if model_path:
-            self.viewer.load_model(model_path)
             total_time = time.time() - self._start_time
-            self.transcription_label.setText(f"Model generated for: {text}")
             self.timer_label.setText(f"Total time: {total_time:.2f} seconds")
-        else:
-            self.transcription_label.setText("Model generation failed")
+        except Exception as e:
+            self.transcription_label.setText("Pipeline failed")
             self.timer_label.setText("")
+            print("[ERROR]", e)
+        finally:
+            self.elapsed_timer.stop()
+            self.progress_bar.setVisible(False)
 
     def update_timer(self):
         if self._start_time:

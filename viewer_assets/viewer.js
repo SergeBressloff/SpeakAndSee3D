@@ -1,5 +1,6 @@
 import * as THREE from './three.module.js';
 import { GLTFLoader } from './GLTFLoader.js';
+import { OBJLoader } from './OBJLoader.js'
 import { OrbitControls } from './OrbitControls.js';
 
 const scene = new THREE.Scene();
@@ -21,36 +22,63 @@ scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 scene.add(new THREE.DirectionalLight(0xffffff, 0.6));
 
 // Loader
-const loader = new GLTFLoader();
+const gltfLoader = new GLTFLoader();
+const objLoader = new OBJLoader();
 let currentModel = null;
 
-function loadModel(modelFile) {
-    const path = `./${modelFile}`;
-    loader.load(
-        path,
-        (gltf) => {
-            if (currentModel) {
-                scene.remove(currentModel);
+function loadModel(filePath) {
+    const extension = filePath.split('.').pop().toLowerCase();
+
+    // Remove any previous model
+    if (currentModel) {
+        scene.remove(currentModel);
+        currentModel = null;
+    }
+
+    if (extension === 'glb' || extension === 'gltf') {
+        gltfLoader.load(
+            filePath,
+            (gltf) => {
+                currentModel = gltf.scene;
+                scene.add(currentModel);
+                centerAndPositionModel(currentModel);
+            },
+            undefined,
+            (error) => {
+                console.error("Failed to load GLB/GLTF model:", error);
             }
+        );
+    } else if (extension === 'obj') {
+        objLoader.load(
+            filePath,
+            (obj) => {
+                currentModel = obj;
+                scene.add(currentModel);
+                centerAndPositionModel(currentModel);
+            },
+            undefined,
+            (error) => {
+                console.error("Failed to load OBJ model:", error);
+            }
+        );
+    } else {
+        console.error("Unsupported model format:", extension);
+    }
+}
 
-            currentModel = gltf.scene;
-            scene.add(currentModel);
+function centerAndPositionModel(model) {
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3()).length();
+    const center = box.getCenter(new THREE.Vector3());
 
-            // Center and scale camera
-            const box = new THREE.Box3().setFromObject(currentModel);
-            const size = box.getSize(new THREE.Vector3()).length();
-            const center = box.getCenter(new THREE.Vector3());
+    // rotate model
+    model.rotation.x = -Math.PI / 2;
+    model.rotation.z = -Math.PI;
 
-            currentModel.position.sub(center);
-            camera.position.set(0, 0, size * 1.5);
-            camera.lookAt(0, 0, 0);
-            controls.update();
-        },
-        undefined,
-        (error) => {
-            console.error("Failed to load model:", error);
-        }
-    );
+    model.position.sub(center);
+    camera.position.set(0, 0, size * 0.8);
+    camera.lookAt(0, 0, 0);
+    controls.update();
 }
 
 // Expose globally so Python can call it

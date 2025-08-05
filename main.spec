@@ -1,21 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-block_cipher = None
 
 a = Analysis(
     ['main.py'],
-    pathex=["."],
-    binaries=[('whisper.cpp/build/bin/whisper-cli', 'whisper.cpp/build/bin'),],
+    pathex=[],
+    binaries=[],
     datas=[
-        ("viewer_assets/*", "viewer_assets"),
-        ('whisper.cpp/models/ggml-base.en.bin', 'whisper.cpp/models'),
-        ('audio', 'audio'),
-        ("venvs/*", "venvs"),
-        ("generate_image.py", "."),
-        ("generate_model.py", "."),
-        ("venvs/flux_env/bin/python", "_internal/venvs/flux_env/bin"),
-        ("venvs/spa3d_env/bin/python", "_internal/venvs/spa3d_env/bin"),
-        ("stable-point-aware-3d/run.py", "stable-point-aware-3d"),
+        ('viewer_assets/**', 'viewer_assets')
     ],
     hiddenimports = [
         "PySide6",
@@ -42,31 +33,25 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure)
 
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,
+    a.datas,
     [],
-    exclude_binaries=True,
-    name='SpeakAndSee3D',
+    name='main',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
     console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-)
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='SpeakAndSee3D',
 )
