@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, shutil
 
 def resource_path(relative_path):
     """

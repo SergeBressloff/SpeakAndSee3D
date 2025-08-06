@@ -76,7 +76,7 @@ def main():
             except Exception as copy_err:
                 print(f"[ERROR] Failed to copy model: {copy_err}")
             with open(output_json, "w") as f:
-                json.dump({ "model_path": "generated_model.obj" }, f)
+                json.dump({ "model_path": final_path }, f)
             print(f"Model path written to: {output_json}", flush=True)
         else:
             print("Model file not found after generation.")
