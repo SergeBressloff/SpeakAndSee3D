@@ -66,7 +66,15 @@ def main():
         if os.path.exists(obj_model_path):
             print("Object model path:", obj_model_path)
             final_path = os.path.join(VIEWER_ASSETS_DIR, "generated_model.obj")
-            shutil.copy(obj_model_path, final_path)
+            print(f"[DEBUG] obj_model_path exists: {os.path.exists(obj_model_path)}")
+            print(f"[DEBUG] Copying to final_path: {final_path}")
+            try:
+                if os.path.exists(final_path):
+                    os.remove(final_path)
+                shutil.copy(obj_model_path, final_path)
+                print(f"[DEBUG] Copied model to: {final_path}")
+            except Exception as copy_err:
+                print(f"[ERROR] Failed to copy model: {copy_err}")
             with open(output_json, "w") as f:
                 json.dump({ "model_path": "generated_model.obj" }, f)
             print(f"Model path written to: {output_json}", flush=True)

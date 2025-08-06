@@ -19,11 +19,9 @@ from PySide6.QtGui import QFont
 from pipeline import Pipeline
 from audio_recorder import AudioRecorder
 from model_viewer import ModelViewer
-from utils import resource_path, get_writable_viewer_assets
+from utils import resource_path
 import os, sys, multiprocessing, shutil
 import time
-
-VIEWER_ASSETS_DIR = get_writable_viewer_assets()
 
 class MainWindow(QMainWindow):
     def __init__(self):
