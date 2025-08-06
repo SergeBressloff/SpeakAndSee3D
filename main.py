@@ -11,11 +11,12 @@ from PySide6.QtWidgets import (
     QSizePolicy, 
     QSpacerItem, 
     QFileDialog, 
-    QFileDialog, 
-    QInputDialog
+    QFileDialog,
+    QInputDialog,
+    QFrame
 )
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QFont
+from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QRect
+from PySide6.QtGui import QFont, QIcon
 from pipeline import Pipeline
 from audio_recorder import AudioRecorder
 from model_viewer import ModelViewer
@@ -27,11 +28,12 @@ import time
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Speak and See 3D")
-        self.setGeometry(600, 600, 600, 500)
+        self.setWindowTitle("Speak & See 3D")
+        self.setGeometry(600, 600, 600, 700)
 
         # Title
         self.title = QLabel("Speak & See 3D")
+        self.title.setObjectName("TitleLabel")
         font = QFont()
         font.setPointSize(24)
         font.setBold(True)
@@ -39,11 +41,20 @@ class MainWindow(QMainWindow):
         self.title.setAlignment(Qt.AlignCenter)
 
         # Instruction
-        self.transcription_label = QLabel("Describe a 3D model by speaking or typing")
-        self.transcription_label.setAlignment(Qt.AlignCenter)
+        self.instruction_label = QLabel("Describe a 3D model by speaking or typing")
+        self.instruction_label.setAlignment(Qt.AlignCenter)
+
+        self.title.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        self.instruction_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+
+        title_block = QVBoxLayout()
+        title_block.setSpacing(2)  # tight spacing
+        title_block.setContentsMargins(0, 0, 0, 0)
+        title_block.addWidget(self.title, alignment=Qt.AlignCenter)
+        title_block.addWidget(self.instruction_label, alignment=Qt.AlignCenter)
 
         # Input Row: Voice + Text
-        self.record_btn = QPushButton("🎙️ Speak")
+        self.record_btn = QPushButton("")
         self.record_btn.setToolTip("Use your voice to describe the model")
         self.is_recording = False
         self.audio_recorder = AudioRecorder()
@@ -53,21 +64,36 @@ class MainWindow(QMainWindow):
         self.text_input.setPlaceholderText("e.g., 3D model of a dinosaur")
         self.text_input.setMinimumWidth(240)
 
-        self.search_btn = QPushButton("🔍 Search")
+        self.search_btn = QPushButton("")
         self.search_btn.setToolTip("Search for a model using the typed description")
         self.search_btn.clicked.connect(self.handle_text_input)
 
         input_row_layout = QHBoxLayout()
+        input_row_layout.addStretch()
         input_row_layout.addWidget(self.record_btn)
-        input_row_layout.addSpacing(20)
+        input_row_layout.addSpacing(10)
         input_row_layout.addWidget(self.text_input)
+        input_row_layout.addSpacing(10)
         input_row_layout.addWidget(self.search_btn)
         input_row_layout.addStretch()
 
-        # Mode Toggle: Retrieve or Generate
-        self.mode_toggle = QComboBox()
-        self.mode_toggle.addItems(["Retrieve", "Generate"])
-        self.mode_toggle.setToolTip("Choose whether to retrieve or generate a 3D model")
+        # Mode Toggle: Load or Generate
+        self.mode_toggle_layout = QHBoxLayout()
+        self.load_btn = QPushButton("Load")
+        self.generate_btn = QPushButton("Generate")
+
+        for btn in [self.load_btn, self.generate_btn]:
+            btn.setCheckable(True)
+            btn.setMinimumWidth(100)
+
+        self.load_btn.setChecked(True)  # default
+        self.load_btn.clicked.connect(lambda: self.set_mode("Load"))
+        self.generate_btn.clicked.connect(lambda: self.set_mode("generate"))
+
+        self.mode_toggle_layout.addStretch()
+        self.mode_toggle_layout.addWidget(self.load_btn)
+        self.mode_toggle_layout.addWidget(self.generate_btn)
+        self.mode_toggle_layout.addStretch()
 
         # Model Dropdown
         self.model_dropdown = QComboBox()
@@ -76,50 +102,83 @@ class MainWindow(QMainWindow):
             "flux_1_schnell",
             "LCM_Dreamshaper_v7"
         ])
+        self.model_dropdown.setFixedWidth(250)
+
+        self.model_dropdown_container = QWidget()
+        model_layout = QHBoxLayout(self.model_dropdown_container)
+        model_layout.setContentsMargins(0, 0, 0, 0)
+        model_layout.addWidget(self.model_dropdown)
+        self.model_dropdown_container.setFixedHeight(40)
+
+        self.model_dropdown.setVisible(False)  # hidden initially
 
         # Timer
         self.timer_label = QLabel("")
+        self.timer_label.setObjectName("TimerLabel")
         self.elapsed_timer = QTimer()
         self.elapsed_timer.timeout.connect(self.update_timer)
         self._start_time = None  # Store start time
 
         # Save Model
-        self.save_btn = QPushButton("Save Model")
+        self.save_btn = QPushButton("")
         self.save_btn.setToolTip("Save 3D Model")
         self.save_btn.clicked.connect(self.handle_save)
 
-        # Message & Viewer
+        save_btn_layout = QHBoxLayout()
+        save_btn_layout.addStretch()
+        save_btn_layout.addWidget(self.save_btn)
+
+        self.record_btn.setIcon(QIcon(resource_path("mic.svg")))
+        self.search_btn.setIcon(QIcon(resource_path("search.svg")))
+        self.save_btn.setIcon(QIcon(resource_path("save.svg")))
+
+        # Message
         self.message = QLabel("")
+        self.message.setObjectName("MessageLabel")
+
+        footer_layout = QHBoxLayout()
+        footer_layout.addWidget(self.message, 1)
+        footer_layout.addStretch()
+        footer_layout.addWidget(self.timer_label)
+        footer_layout.addStretch()
+        footer_layout.addWidget(self.save_btn)
+
+        # Viewer setup
         self.viewer = ModelViewer()
+
+        # Maybe move this out of styling section!!!
         self.selector = ModelSelector()
 
         # Set button sizes
         self.record_btn.setFixedWidth(100)
         self.search_btn.setFixedWidth(100)
-        self.save_btn.setFixedWidth(140)
+        self.save_btn.setFixedWidth(100)
 
         # === Main Layout ===
         layout = QVBoxLayout()
-        layout.addWidget(self.title)
-        layout.addWidget(self.transcription_label)
-        layout.addLayout(input_row_layout)
-        layout.addWidget(self.mode_toggle)
-        layout.addWidget(self.model_dropdown)
-        layout.addWidget(self.timer_label)
-        layout.addWidget(self.save_btn)
-        layout.addWidget(self.message)
-        layout.addWidget(self.viewer)
+        layout.setContentsMargins(20, 10, 20, 20)
+        layout.setSpacing(8)
 
-        # Stretching behavior
-        layout.setStretch(0, 0)  # title
-        layout.setStretch(1, 0)  # instructions
-        layout.setStretch(2, 0)  # input row
-        layout.setStretch(3, 0)  # toggle
-        layout.setStretch(4, 0)  # model dropdown
-        layout.setStretch(5, 0)  # timer
-        layout.setStretch(6, 0)  # save model
-        layout.setStretch(7, 0)  # message
-        layout.setStretch(8, 1)  # viewer
+        # Wrap top controls
+        top_section = QVBoxLayout()
+        top_section.setSpacing(8)
+        top_section.setContentsMargins(0, 0, 0, 0)
+        top_section.addLayout(title_block)
+        top_section.addLayout(input_row_layout)
+        top_section.addLayout(self.mode_toggle_layout)
+        top_section.addWidget(self.model_dropdown_container)
+        top_section.addLayout(footer_layout)
+
+        top_wrapper = QWidget()
+        top_wrapper.setLayout(top_section)
+        top_wrapper.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+
+        # Add to main layout
+        layout.addWidget(top_wrapper)
+        layout.addWidget(self.viewer, stretch=1)
+
+        layout.setStretch(0, 0)  # top_wrapper
+        layout.setStretch(1, 1)  # viewer expands
 
         # Set as central widget
         container = QWidget()
@@ -128,19 +187,30 @@ class MainWindow(QMainWindow):
 
     # Determine whether in generate mode
     def is_generate_mode(self):
-        return self.mode_toggle.currentText().lower() == "generate"
+        return self.generate_btn.isChecked()
+
+    def set_mode(self, mode):
+            is_generate = mode == "generate"
+            self.load_btn.setChecked(not is_generate)
+            self.generate_btn.setChecked(is_generate)
+
+            # Show model dropdown only when in generate mode
+            self.model_dropdown.setVisible(is_generate)
 
     # Turn recording on and off - need to add spacebar control
     def toggle_recording(self):
         if not self.is_recording:
             self.is_recording = True
-            self.transcription_label.setText("Recording... Click again to stop.")
+            self.instruction_label.setText("Recording... Click again to stop.")
             self.record_btn.setText("Stop")
+            self.record_btn.setIcon(QIcon())
             self.audio_recorder.start()
         else:
             self.is_recording = False
-            self.transcription_label.setText("Press Speak to See in 3D")
-            self.record_btn.setText("Speak")
+            self.instruction_label.setText("Describe a 3D model by speaking or typing")
+            self.record_btn.setText("")
+            self.record_btn.setIcon(QIcon(resource_path("mic.svg")))
+            
             self.audio_recorder.stop()
 
             try:
@@ -192,7 +262,7 @@ class MainWindow(QMainWindow):
         else:
             self.load_model_from_text(text)
 
-    # Retrieve from text
+    # Load from text
     def load_model_from_text(self, text):
         model_file, score = self.selector.get_best_match(text)
         print("Model file:", model_file)
@@ -214,14 +284,14 @@ class MainWindow(QMainWindow):
             print("Model name: ", model_name)
             result = pipe.run_pipeline(text, model_name)
 
-            self.transcription_label.setText(f"Model for: {result['text']}")
+            self.message.setText(f"Model for: {result['text']}")
             print("Model path/name:", result['model'])
             self.viewer.load_model(result['model'])
 
             total_time = time.time() - self._start_time
             self.timer_label.setText(f"Total time: {total_time:.2f} seconds")
         except Exception as e:
-            self.transcription_label.setText("Pipeline failed")
+            self.message.setText("Pipeline failed")
             self.timer_label.setText("")
             print("[ERROR]", e)
         finally:
@@ -267,10 +337,15 @@ class MainWindow(QMainWindow):
         else:
             self.message.setText("Save canceled: No description entered.")
 
+def load_stylesheet(filename):
+    with open(filename, "r") as f:
+        return f.read()
+
 
 if __name__ == '__main__':
     multiprocessing.freeze_support()
     app = QApplication(sys.argv)
+    app.setStyleSheet(load_stylesheet("style.qss"))
     window = MainWindow()
     window.show()
     sys.exit(app.exec())

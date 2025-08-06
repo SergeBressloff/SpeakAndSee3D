@@ -1,0 +1,90 @@
+/* GENERAL */
+QWidget {
+    background-color: #CFD8DC; /* darker slate background */
+    color: #263238;
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 14px;
+}
+
+/* TITLE */
+QLabel#TitleLabel {
+    font-size: 28px;
+    font-weight: bold;
+    color: #263238;
+}
+
+/* LABELS */
+QLabel#MessageLabel {
+    color: #546E7A;
+    font-style: italic;
+    padding: 4px;
+}
+
+QLabel#TimerLabel {
+    color: #546E7A;
+    font-size: 13px;
+    padding: 4px;
+}
+
+/* BUTTONS */
+QPushButton {
+    background-color: #1E88E5;
+    color: white;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 6px;
+}
+
+QPushButton:hover {
+    background-color: #1565C0;
+}
+
+QPushButton:pressed {
+    background-color: #0D47A1;
+}
+
+QPushButton:checked {
+    background-color: #1E88E5;
+    color: white;
+}
+
+QPushButton {
+    background-color: #CFD8DC;
+    color: #263238;
+    border: 1px solid #90A4AE;
+    border-radius: 12px;
+    padding: 6px 16px;
+}
+
+/* INPUTS */
+QLineEdit, QComboBox {
+    background-color: #FFFFFF;
+    border: 1px solid #90A4AE;
+    border-radius: 5px;
+    padding: 5px 8px;
+}
+
+QComboBox {
+    padding: 6px 10px;
+    border-radius: 6px;
+    background-color: #FFFFFF;
+    border: 1px solid #90A4AE;
+    min-width: 280px;
+    font-weight: normal;
+}
+
+QComboBox QAbstractItemView {
+    border: 1px solid #B0BEC5;
+    selection-background-color: #E3F2FD;
+    background: white;
+    padding: 4px;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 24px;
+    border-left: 1px solid #B0BEC5;
+}
+
+
