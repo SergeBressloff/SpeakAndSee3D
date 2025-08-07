@@ -6,7 +6,8 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
-        ('viewer_assets/**', 'viewer_assets')
+        ('viewer_assets/**', 'viewer_assets'),
+        ('icons/**', 'icons')
     ],
     hiddenimports = [
         "PySide6",

@@ -42,6 +42,7 @@ function loadModel(filePath) {
                 currentModel = gltf.scene;
                 scene.add(currentModel);
                 centerAndPositionModel(currentModel);
+                currentModel.rotation.y = -Math.PI;
             },
             undefined,
             (error) => {
@@ -55,6 +56,8 @@ function loadModel(filePath) {
                 currentModel = obj;
                 scene.add(currentModel);
                 centerAndPositionModel(currentModel);
+                currentModel.rotation.x = -Math.PI / 2;
+                currentModel.rotation.z = -Math.PI;
             },
             undefined,
             (error) => {
@@ -71,18 +74,23 @@ function centerAndPositionModel(model) {
     const size = box.getSize(new THREE.Vector3()).length();
     const center = box.getCenter(new THREE.Vector3());
 
-    // rotate model
-    model.rotation.x = -Math.PI / 2;
-    model.rotation.z = -Math.PI;
-
     model.position.sub(center);
     camera.position.set(0, 0, size * 0.8);
     camera.lookAt(0, 0, 0);
     controls.update();
 }
 
+function clearModel() {
+    if (currentModel) {
+        scene.remove(currentModel);
+        currentModel = null;
+        console.log("Model cleared.");
+    }
+}
+
 // Expose globally so Python can call it
 window.loadModel = loadModel;
+window.clearModel = clearModel;
 
 // Animation loop
 function animate() {

@@ -6,10 +6,10 @@ from utils import resource_path, get_writable_viewer_assets
 
 class ModelSelector:
     def __init__(self, desc_file = os.path.join(get_writable_viewer_assets(), "model_descriptions.json")):
-        # Need to put sentence transformer model in bin/models
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')
-        self.desc_file = resource_path(desc_file)
+        model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin", "models", "all-MiniLM-L6-v2")
+        self.model = SentenceTransformer(model_path)
 
+        self.desc_file = resource_path(desc_file)
         self.model_descriptions = self.load_descriptions_from_multiple_sources()
         self.descriptions = list(self.model_descriptions.values())
         self.embeddings = self.model.encode(self.descriptions, convert_to_tensor=True)
@@ -42,6 +42,13 @@ class ModelSelector:
         self.save_descriptions()
         self.descriptions = list(self.model_descriptions.values())
         self.embeddings = self.model.encode(self.descriptions, convert_to_tensor=True)
+
+    def remove_model(self, filename):
+        if filename in self.model_descriptions:
+            del self.model_descriptions[filename]
+            self.save_descriptions()
+            self.descriptions = list(self.model_descriptions.values())
+            self.embeddings = self.model.encode(self.descriptions, convert_to_tensor=True)
 
     def get_best_match(self, input_text, threshold=0.5):
         query_embedding = self.model.encode(input_text, convert_to_tensor=True)
