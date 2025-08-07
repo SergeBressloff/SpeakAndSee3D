@@ -24,6 +24,7 @@ from model_selector import ModelSelector
 from utils import resource_path, get_writable_viewer_assets
 import os, sys, multiprocessing, shutil
 import time
+import contextlib
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -140,6 +141,7 @@ class MainWindow(QMainWindow):
         # Viewer/selector setup
         self.viewer = ModelViewer()
         self.selector = ModelSelector()
+        self.current_model_path = None
 
         # Set button icons and sizes
         self.record_btn.setIcon(QIcon(resource_path(os.path.join("icons", "mic.svg"))))
@@ -194,6 +196,10 @@ class MainWindow(QMainWindow):
 
         # Show model dropdown only when in generate mode
         self.model_dropdown.setVisible(is_generate)
+
+        # Safely disconnect signal to prevent duplicates
+        with contextlib.suppress(TypeError, RuntimeError):
+            self.save_del_btn.clicked.disconnect()
 
         # Reconfigure save button behavior and appearance
         if is_generate:
@@ -286,6 +292,7 @@ class MainWindow(QMainWindow):
         if model_file:
             # self.message.setText(f"{text} (matched: {model_file}, score={score:.2f})")
             self.viewer.load_model(model_file)
+            self.current_model_path = model_file
             self.message.setText(text)
         else:
             self.message.setText(f"{text} (no model match)")
@@ -304,6 +311,7 @@ class MainWindow(QMainWindow):
             self.message.setText(f"Model for: {result['text']}")
             print("Model path/name:", result['model'])
             self.viewer.load_model(result['model'])
+            self.current_model_path = result['model']
 
             total_time = time.time() - self._start_time
             self.timer_label.setText(f"Total time: {total_time:.2f} seconds")
@@ -320,8 +328,19 @@ class MainWindow(QMainWindow):
             elapsed = time.time() - self._start_time
             self.timer_label.setText(f"Elapsed time: {elapsed:.1f}s")
 
-    # Need to check and complete!
+    # Save a generated model
     def handle_save(self):
+        print("[DEBUG] current_model_path:", self.current_model_path)
+
+        if not self.current_model_path:
+            self.message.setText("No model to save.")
+            return
+
+        if not os.path.isfile(self.current_model_path):
+            print("[DEBUG] File does not exist:", self.current_model_path)
+            self.message.setText("No model to save. (File does not exist)")
+            return
+
         filename, ok = QInputDialog.getText(self, "Save Model", "Enter filename (without extension):")
         if not ok or not filename.strip():
             self.message.setText("Save canceled: No filename entered.")
@@ -331,48 +350,44 @@ class MainWindow(QMainWindow):
         if not filename.lower().endswith(".obj"):
             filename += ".obj"
 
-        # File path needs to be model currently in viewer
-        file_path = ''
-
-        # Copy file to viewer_assets directory
         try:
             download_dir = os.path.join(get_writable_viewer_assets(), "3d_models")
             os.makedirs(download_dir, exist_ok=True)
 
             dest_path = os.path.join(download_dir, filename)
-            with open(file_path, "rb") as src, open(dest_path, "wb") as dst:
-                dst.write(src.read())
+            print("[DEBUG] dest path:", dest_path)
+
+            print("[DEBUG] Source exists before copy:", os.path.exists(self.current_model_path))
+
+            shutil.copy(self.current_model_path, dest_path)
+
+            print("[DEBUG] Destination exists after copy:", os.path.exists(dest_path))
+
+            description, ok = QInputDialog.getText(self, "Model Description", "Enter description for the uploaded model:")
+            if ok and description.strip():
+                self.selector.add_model(filename, description.strip())
+                self.message.setText(f"Saved: {filename}")
+            else:
+                self.message.setText("Save canceled: No description entered.")
+
         except Exception as e:
             self.message.setText(f"Error saving file: {str(e)}")
-            return
 
-        # Ask user for description
-        description, ok = QInputDialog.getText(self, "Model Description", "Enter description for the uploaded model:")
-        if ok and description.strip():
-            self.selector.add_model(filename, description.strip())
-            self.message.setText(f"Saved: {filename}")
-        else:
-            self.message.setText("Save canceled: No description entered.")
-
-    # Need to check and complete!
+    # Delete a loaded model
     def handle_delete(self):
-        filename, ok = QInputDialog.getText(self, "Delete Model", "Enter filename to delete (without extension):")
-        if not ok or not filename.strip():
-            self.message.setText("Delete canceled.")
+        if not self.current_model_path or not os.path.isfile(self.current_model_path):
+            self.message.setText("No model loaded to delete.")
             return
-
-        filename = filename.strip()
-        if not filename.lower().endswith(".obj"):
-            filename += ".obj"
 
         try:
-            file_path = os.path.join(get_writable_viewer_assets(), "3d_models", filename)
-            if os.path.exists(file_path):
-                os.remove(file_path)
-                self.selector.remove_model(filename)
-                self.message.setText(f"Deleted: {filename}")
-            else:
-                self.message.setText("File not found.")
+            filename = os.path.basename(self.current_model_path)
+
+            os.remove(self.current_model_path)
+            self.selector.remove_model(filename)
+
+            self.viewer.clear_model()
+            self.current_model_path = None
+            self.message.setText(f"Deleted: {filename}")
         except Exception as e:
             self.message.setText(f"Error deleting file: {str(e)}")
 

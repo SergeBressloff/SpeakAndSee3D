@@ -34,3 +34,13 @@ class ModelViewer(QWebEngineView):
         }}
         """
         self.page().runJavaScript(js_code)
+
+    def clear_model(self):
+        js_code = """
+        if (typeof clearModel === 'function') {
+            clearModel();
+        } else {
+            console.error('clearModel function not found in page');
+        }
+        """
+        self.page().runJavaScript(js_code)

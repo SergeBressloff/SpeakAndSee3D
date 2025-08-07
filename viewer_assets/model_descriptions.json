@@ -6,10 +6,11 @@
   "elephant.glb": "elephant",
   "heart.glb": "human heart",
   "lion.glb": "lion",
-  "skeleton.glb": "human skeleton",
   "soldier.glb": "World War 1 soldier",
   "space.glb": "spaceship",
   "train.glb": "steam train",
   "tree.glb": "oak tree",
-  "volcano.glb": "volcano"
+  "volcano.glb": "volcano",
+  "giraffe.obj": "the head of a giraffe",
+  "cowboy.obj": "3d model of a cowboy"
 }

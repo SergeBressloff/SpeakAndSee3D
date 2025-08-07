@@ -80,8 +80,17 @@ function centerAndPositionModel(model) {
     controls.update();
 }
 
+function clearModel() {
+    if (currentModel) {
+        scene.remove(currentModel);
+        currentModel = null;
+        console.log("Model cleared.");
+    }
+}
+
 // Expose globally so Python can call it
 window.loadModel = loadModel;
+window.clearModel = clearModel;
 
 // Animation loop
 function animate() {
