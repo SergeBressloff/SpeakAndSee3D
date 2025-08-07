@@ -40,15 +40,16 @@ class MainWindow(QMainWindow):
         self.title.setFont(font)
         self.title.setAlignment(Qt.AlignCenter)
 
-        # Instruction
+        # Instruction label
         self.instruction_label = QLabel("Describe a 3D model by speaking or typing")
         self.instruction_label.setAlignment(Qt.AlignCenter)
 
         self.title.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         self.instruction_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
 
+        # Title block
         title_block = QVBoxLayout()
-        title_block.setSpacing(2)  # tight spacing
+        title_block.setSpacing(2)
         title_block.setContentsMargins(0, 0, 0, 0)
         title_block.addWidget(self.title, alignment=Qt.AlignCenter)
         title_block.addWidget(self.instruction_label, alignment=Qt.AlignCenter)
@@ -68,6 +69,8 @@ class MainWindow(QMainWindow):
         self.search_btn.setToolTip("Search for a model using the typed description")
         self.search_btn.clicked.connect(self.handle_text_input)
 
+        self.text_input.returnPressed.connect(self.handle_text_input)
+
         input_row_layout = QHBoxLayout()
         input_row_layout.addStretch()
         input_row_layout.addWidget(self.record_btn)
@@ -86,7 +89,7 @@ class MainWindow(QMainWindow):
             btn.setCheckable(True)
             btn.setMinimumWidth(100)
 
-        self.load_btn.setChecked(True)  # default
+        self.load_btn.setChecked(True)
         self.load_btn.clicked.connect(lambda: self.set_mode("Load"))
         self.generate_btn.clicked.connect(lambda: self.set_mode("generate"))
 
@@ -117,44 +120,36 @@ class MainWindow(QMainWindow):
         self.timer_label.setObjectName("TimerLabel")
         self.elapsed_timer = QTimer()
         self.elapsed_timer.timeout.connect(self.update_timer)
-        self._start_time = None  # Store start time
+        self._start_time = None
 
-        # Save Model
-        self.save_btn = QPushButton("")
-        self.save_btn.setToolTip("Save 3D Model")
-        self.save_btn.clicked.connect(self.handle_save)
-
-        save_btn_layout = QHBoxLayout()
-        save_btn_layout.addStretch()
-        save_btn_layout.addWidget(self.save_btn)
-
-        self.record_btn.setIcon(QIcon(resource_path("mic.svg")))
-        self.search_btn.setIcon(QIcon(resource_path("search.svg")))
-        self.save_btn.setIcon(QIcon(resource_path("save.svg")))
+        # Save/Delete 3D Model
+        self.save_del_btn = QPushButton("")
 
         # Message
         self.message = QLabel("")
         self.message.setObjectName("MessageLabel")
 
+        # Message, timer, save
         footer_layout = QHBoxLayout()
         footer_layout.addWidget(self.message, 1)
         footer_layout.addStretch()
         footer_layout.addWidget(self.timer_label)
         footer_layout.addStretch()
-        footer_layout.addWidget(self.save_btn)
+        footer_layout.addWidget(self.save_del_btn)
 
-        # Viewer setup
+        # Viewer/selector setup
         self.viewer = ModelViewer()
-
-        # Maybe move this out of styling section!!!
         self.selector = ModelSelector()
 
-        # Set button sizes
+        # Set button icons and sizes
+        self.record_btn.setIcon(QIcon(resource_path(os.path.join("icons", "mic.svg"))))
         self.record_btn.setFixedWidth(100)
+        self.search_btn.setIcon(QIcon(resource_path(os.path.join("icons", "search.svg"))))
         self.search_btn.setFixedWidth(100)
-        self.save_btn.setFixedWidth(100)
+        self.save_del_btn.setIcon(QIcon(resource_path(os.path.join("icons", "save.svg"))))
+        self.save_del_btn.setFixedWidth(100)
 
-        # === Main Layout ===
+        # Main Layout
         layout = QVBoxLayout()
         layout.setContentsMargins(20, 10, 20, 20)
         layout.setSpacing(8)
@@ -185,17 +180,30 @@ class MainWindow(QMainWindow):
         container.setLayout(layout)
         self.setCentralWidget(container)
 
+        # Set default to load
+        self.set_mode("Load")
+
     # Determine whether in generate mode
     def is_generate_mode(self):
         return self.generate_btn.isChecked()
 
     def set_mode(self, mode):
-            is_generate = mode == "generate"
-            self.load_btn.setChecked(not is_generate)
-            self.generate_btn.setChecked(is_generate)
+        is_generate = mode == "generate"
+        self.load_btn.setChecked(not is_generate)
+        self.generate_btn.setChecked(is_generate)
 
-            # Show model dropdown only when in generate mode
-            self.model_dropdown.setVisible(is_generate)
+        # Show model dropdown only when in generate mode
+        self.model_dropdown.setVisible(is_generate)
+
+        # Reconfigure save button behavior and appearance
+        if is_generate:
+            self.save_del_btn.setToolTip("Save 3D Model")
+            self.save_del_btn.setIcon(QIcon(resource_path(os.path.join("icons", "save.svg"))))
+            self.save_del_btn.clicked.connect(self.handle_save)
+        else:
+            self.save_del_btn.setToolTip("Delete 3D Model")
+            self.save_del_btn.setIcon(QIcon(resource_path(os.path.join("icons", "rubbish.svg"))))
+            self.save_del_btn.clicked.connect(self.handle_delete)
 
     # Turn recording on and off - need to add spacebar control
     def toggle_recording(self):
@@ -209,12 +217,10 @@ class MainWindow(QMainWindow):
             self.is_recording = False
             self.instruction_label.setText("Describe a 3D model by speaking or typing")
             self.record_btn.setText("")
-            self.record_btn.setIcon(QIcon(resource_path("mic.svg")))
-            
+            self.record_btn.setIcon(QIcon(resource_path(os.path.join("icons", "mic.svg"))))
             self.audio_recorder.stop()
 
             try:
-
                 # Determine base path
                 # Need to go through all files and use resource path for this
                 if getattr(sys, 'frozen', False):
@@ -250,6 +256,17 @@ class MainWindow(QMainWindow):
                 self.message.setText("Error processing audio.")
                 print("[ERROR]", e)
 
+    # Use spacebar to start/stop recording
+    def keyPressEvent(self, event):
+        # Ignore spacebar if typing in the text input
+        if self.text_input.hasFocus():
+            return super().keyPressEvent(event)
+
+        if event.key() == Qt.Key_Space:
+            self.toggle_recording()
+        else:
+            super().keyPressEvent(event)
+
     # text input
     def handle_text_input(self):
         text = self.text_input.text().strip()
@@ -273,7 +290,7 @@ class MainWindow(QMainWindow):
         else:
             self.message.setText(f"{text} (no model match)")
 
-    # generate model!!
+    # Model generation
     def generate_model(self, text):
         self._start_time = time.time()
         self.elapsed_timer.start(100)
@@ -303,7 +320,7 @@ class MainWindow(QMainWindow):
             elapsed = time.time() - self._start_time
             self.timer_label.setText(f"Elapsed time: {elapsed:.1f}s")
 
-    # Only want this to be an option when a model has been generated, not retrieved
+    # Need to check and complete!
     def handle_save(self):
         filename, ok = QInputDialog.getText(self, "Save Model", "Enter filename (without extension):")
         if not ok or not filename.strip():
@@ -336,6 +353,28 @@ class MainWindow(QMainWindow):
             self.message.setText(f"Saved: {filename}")
         else:
             self.message.setText("Save canceled: No description entered.")
+
+    # Need to check and complete!
+    def handle_delete(self):
+        filename, ok = QInputDialog.getText(self, "Delete Model", "Enter filename to delete (without extension):")
+        if not ok or not filename.strip():
+            self.message.setText("Delete canceled.")
+            return
+
+        filename = filename.strip()
+        if not filename.lower().endswith(".obj"):
+            filename += ".obj"
+
+        try:
+            file_path = os.path.join(get_writable_viewer_assets(), "3d_models", filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                self.selector.remove_model(filename)
+                self.message.setText(f"Deleted: {filename}")
+            else:
+                self.message.setText("File not found.")
+        except Exception as e:
+            self.message.setText(f"Error deleting file: {str(e)}")
 
 def load_stylesheet(filename):
     with open(filename, "r") as f:
