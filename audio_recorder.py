@@ -2,7 +2,7 @@ import sounddevice as sd
 import numpy as np
 import wave
 import os
-from utils import resource_path
+from utils import get_audio_dir
 
 class AudioRecorder:
     def __init__(self, samplerate=16000):
@@ -10,7 +10,7 @@ class AudioRecorder:
         self.channels = 1
         self.frames = []
         self.stream = None
-        self.filename = resource_path(os.path.join("audio", "recording.wav"))
+        self.filename = os.path.join(get_audio_dir(), "recording.wav")
 
         audio_dir = os.path.dirname(self.filename)
         os.makedirs(audio_dir, exist_ok=True)

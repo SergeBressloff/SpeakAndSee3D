@@ -3,6 +3,7 @@ import subprocess
 import sys
 import json
 import tempfile
+from utils import get_models_dir, resource_path
 
 def main():
     print("Starting diffuse executable", flush=True)
@@ -21,28 +22,14 @@ def main():
     if not prompt:
         raise ValueError("No prompt found in input JSON")
 
-    # Determine base path for model
-    if getattr(sys, 'frozen', False):
-        model_base_path = os.path.dirname(sys.executable)
-    else:
-        model_base_path = os.path.dirname(os.path.abspath(__file__))
-
+    model_base_path = get_models_dir()
     model_name = input_data.get("model_name", "onnx-stable-diffusion-2-1")
-    
-    if model_name == "flux_1_schnell":
-        model_name = os.path.join(model_name, "models--black-forest-labs--Flux.1-schnell", "snapshots", "741f7c3ce8b383c54771c7003378a50191e9efe9")
-    elif model_name == "LCM_Dreamshaper_v7":
-        model_name = os.path.join("dreamshaper", f"models--SimianLuo--{model_name}", "snapshots", "a85df6a8bd976cdd08b4fd8f3b73f229c9e54df5")
 
-    model_path = os.path.join(model_base_path, "models", model_name)
+    model_path = os.path.join(model_base_path, model_name)
+    print("Model path:", model_path)
 
-    # Determine base path for environment
-    if getattr(sys, 'frozen', False):
-        env_base_path = sys._MEIPASS
-    else:
-        env_base_path = os.path.dirname(os.path.abspath(__file__))
-
-    python_env = os.path.join(env_base_path, "venvs", "stable_env", "Scripts", "python.exe")
+    python_exe = os.path.join("venvs", "stable_env", "Scripts", "python.exe")
+    python_env = resource_path(python_exe)
 
     print(f"[DEBUG] Using Python: {python_env}", flush=True)
 
@@ -52,13 +39,14 @@ def main():
     output_image_path = os.path.join(tempfile.gettempdir(), "generated_image.png")
 
     if model_name.startswith("flux"):
-        run_script = os.path.join(env_base_path, "run_flux.py")
-    elif model_name.startswith("dream"):
-        run_script = os.path.join(env_base_path, "run_dreamshaper.py")
+        run_script = resource_path("run_flux.py")
+    elif model_name.startswith("LCM"):
+        run_script = resource_path("run_stable_diffusion.py")
     elif model_name.startswith("onnx"):
-        run_script = os.path.join(env_base_path, "run_onnx.py")
+        run_script = resource_path("run_onnx.py")
+    print("Run Script:", run_script)
 
-    print(f"Running run_flux.py with prompt '{prompt}', output: {output_image_path}", flush=True)
+    print(f"Running {model_name} with prompt '{prompt}', output: {output_image_path}", flush=True)
 
     try:
         subprocess.run([

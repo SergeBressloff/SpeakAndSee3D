@@ -3,7 +3,7 @@ import subprocess
 import sys
 import json
 import shutil
-from utils import get_writable_viewer_assets
+from utils import get_writable_viewer_assets, get_models_dir, resource_path
 
 VIEWER_ASSETS_DIR = get_writable_viewer_assets()
 
@@ -25,36 +25,26 @@ def main():
         print(f"[ERROR] Invalid or missing image path: {image_path}", flush=True)
         sys.exit(1)
 
-    # Determine base path for model
-    if getattr(sys, 'frozen', False):
-        model_base_path = os.path.dirname(sys.executable)
-    else:
-        cwd = os.path.dirname(os.path.abspath(__file__))
-        model_base_path = os.path.join(cwd, "bin")
-    model_path = os.path.join(model_base_path, "models", "TripoSR")
-    print(model_path)
+    model_path = os.path.join(get_models_dir(), "TripoSR")
+    print("Model path:", model_path)
 
-    if getattr(sys, 'frozen', False):
-        base_path = sys._MEIPASS
-    else:
-        base_path = os.path.dirname(os.path.abspath(__file__))
+    python_exe = os.path.join("venvs", "tripo_env", "Scripts", "python.exe")
+    python_env = resource_path(python_exe)
 
-    python_exe = os.path.join(base_path, "venvs", "tripo_env", "Scripts", "python.exe")
-
-    run_script = os.path.join(base_path, "TripoSR", "run.py")
+    run_script = resource_path(os.path.join("TripoSR", "run.py"))
 
     model_output_dir = os.path.abspath("output")
     os.makedirs(model_output_dir, exist_ok=True)
 
     obj_model_path = os.path.join(model_output_dir, "0", "mesh.obj")
 
-    print("python_exe: ", python_exe)
+    print("python_env: ", python_env)
     print(f"Running: {run_script} with image {image_path} → {model_output_dir}", flush=True)
 
     try:
         print("before subprocess")
         subprocess.run([
-            python_exe,
+            python_env,
             run_script,
             image_path,
             "--pretrained-model-name-or-path", model_path,
