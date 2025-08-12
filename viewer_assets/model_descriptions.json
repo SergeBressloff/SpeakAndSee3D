@@ -2,7 +2,6 @@
   "aeroplane.glb": "aeroplane",
   "bicycle.glb": "bicycle, bike",
   "cat.glb": "cat",
-  "dino.glb": "T-Rex dinosaur",
   "elephant.glb": "elephant",
   "heart.glb": "human heart",
   "lion.glb": "lion",
@@ -10,7 +9,6 @@
   "space.glb": "spaceship",
   "train.glb": "steam train",
   "tree.glb": "oak tree",
-  "volcano.glb": "volcano",
   "giraffe.obj": "the head of a giraffe",
   "cowboy.obj": "3d model of a cowboy"
 }

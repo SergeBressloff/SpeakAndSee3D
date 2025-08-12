@@ -9,7 +9,7 @@ a = Analysis(
         ('../stable_env/*', 'venvs/stable_env'),
         ('run_flux.py', '.'),
         ('run_onnx.py', '.'),
-        ('run_dreamshaper.py', '.')
+        ('run_stable_diffusion.py', '.')
     ],
     hiddenimports=[],
     hookspath=[],

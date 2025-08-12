@@ -13,7 +13,12 @@ from PySide6.QtWidgets import (
     QFileDialog, 
     QFileDialog,
     QInputDialog,
-    QFrame
+    QFrame,
+    QDialog, 
+    QFormLayout, 
+    QDialogButtonBox, 
+    QSpinBox, 
+    QDoubleSpinBox
 )
 from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QRect
 from PySide6.QtGui import QFont, QIcon
@@ -21,10 +26,97 @@ from pipeline import Pipeline
 from audio_recorder import AudioRecorder
 from model_viewer import ModelViewer
 from model_selector import ModelSelector
-from utils import resource_path, get_writable_viewer_assets
+from utils import get_app_dir, get_data_dir, get_viewer_assets, get_models_dir, get_icons_dir
 import os, sys, multiprocessing, shutil
 import time
 import contextlib
+
+def is_flux(model_name: str) -> bool:
+    return "flux" in (model_name or "").lower()
+
+def is_lcm_dreamshaper(model_name: str) -> bool:
+    return (model_name or "").lower() == "lcm_dreamshaper_v7"
+
+def defaults_for(model_name: str) -> dict:
+    name = (model_name or "").lower()
+    if is_flux(name):
+        return {"steps": 4, "guidance_scale": 0.0, "max_sequence_length": 256, "seed": 0}
+    if is_lcm_dreamshaper(name):
+        return {"steps": 20, "guidance_scale": 1.5, "seed": 0}
+    # Generic SD-ish defaults
+    return {"steps": 20, "guidance_scale": 7.5, "seed": 0}
+
+
+class ConfigDialog(QDialog):
+    def __init__(self, parent, model_name: str, preset: dict | None = None):
+        super().__init__(parent)
+        self.setWindowTitle("Generation Settings")
+        self.model_name = model_name
+        self._is_flux = is_flux(model_name)
+
+        # start from model defaults, then overlay preset if provided
+        d = defaults_for(model_name)
+        if preset:
+            d.update({k: v for k, v in preset.items() if v is not None})
+
+        form = QFormLayout(self)
+
+        # Optional negative prompt
+        self.neg_prompt_edit = QLineEdit(self)
+        self.neg_prompt_edit.setPlaceholderText("Optional negative prompt")
+        self.neg_prompt_edit.setText(str(d.get("negative_prompt", "")))
+        form.addRow(QLabel("Negative Prompt:"), self.neg_prompt_edit)
+
+        # Steps
+        self.steps = QSpinBox(self)
+        self.steps.setRange(1, 200)
+        self.steps.setValue(int(d.get("steps", 20)))
+        form.addRow(QLabel("Steps:"), self.steps)
+
+        # Guidance
+        self.guidance = QDoubleSpinBox(self)
+        self.guidance.setDecimals(2)
+        self.guidance.setRange(0.0, 50.0)
+        self.guidance.setSingleStep(0.1)
+        self.guidance.setValue(float(d.get("guidance_scale", 7.5)))
+        form.addRow(QLabel("Guidance Scale:"), self.guidance)
+
+        # Flux-only: max_sequence_length
+        self.max_seq_label = QLabel("Max Sequence Length:")
+        self.max_seq = QSpinBox(self)
+        self.max_seq.setRange(32, 4096)
+        self.max_seq.setValue(int(d.get("max_sequence_length", 256)))
+        if self._is_flux:
+            form.addRow(self.max_seq_label, self.max_seq)
+        else:
+            self.max_seq_label.hide()
+            self.max_seq.hide()
+
+        # Seed
+        self.seed = QSpinBox(self)
+        self.seed.setRange(0, 2**31 - 1)
+        self.seed.setValue(int(d.get("seed", 0)))
+        form.addRow(QLabel("Seed:"), self.seed)
+
+        # OK/Cancel
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        form.addWidget(buttons)
+
+    def values(self) -> dict:
+        cfg = {
+            "steps": int(self.steps.value()),
+            "guidance_scale": float(self.guidance.value()),
+            "seed": int(self.seed.value()),
+        }
+        neg = self.neg_prompt_edit.text().strip()
+        if neg:
+            cfg["negative_prompt"] = neg
+        if is_flux(self.model_name):
+            cfg["max_sequence_length"] = int(self.max_seq.value())
+        return cfg
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -100,21 +192,47 @@ class MainWindow(QMainWindow):
         self.mode_toggle_layout.addStretch()
 
         # Model Dropdown
+        models_dir = get_models_dir()
         self.model_dropdown = QComboBox()
-        self.model_dropdown.addItems([
-            "onnx-stable-diffusion-2-1",
-            "flux_1_schnell",
-            "LCM_Dreamshaper_v7"
-        ])
+        models = [
+            name for name in os.listdir(models_dir) 
+            if name != ".DS_Store"
+            and name != "all-MiniLM-L6-v2"
+            and name != "TripoSR"
+        ]
+        self.model_dropdown.addItems(models)
         self.model_dropdown.setFixedWidth(250)
+
+        # --- Settings button (opens config dialog) ---
+        self.settings_btn = QPushButton("")
+        self.settings_btn.setToolTip("Configure generation settings")
+        gear_icon = (os.path.join(get_icons_dir(), "gear.svg"))
+        self.settings_btn.setIcon(QIcon(gear_icon))
+        self.settings_btn.clicked.connect(self.open_settings_dialog)
+
+        # store per-model settings here
+        self.per_model_cfg = {}
 
         self.model_dropdown_container = QWidget()
         model_layout = QHBoxLayout(self.model_dropdown_container)
         model_layout.setContentsMargins(0, 0, 0, 0)
+        model_layout.addStretch()
         model_layout.addWidget(self.model_dropdown)
+        model_layout.addSpacing(8)
+        model_layout.addWidget(self.settings_btn)
+        model_layout.addStretch()
         self.model_dropdown_container.setFixedHeight(40)
 
         self.model_dropdown.setVisible(False)  # hidden initially
+        self.settings_btn.setVisible(False)
+
+        self.model_dropdown.currentTextChanged.connect(
+            lambda _: self.message.setText(
+                "Using saved settings for this model"
+                if self.model_dropdown.currentText() in self.per_model_cfg
+                else "Using defaults for this model"
+            )
+        )
 
         # Timer
         self.timer_label = QLabel("")
@@ -144,11 +262,11 @@ class MainWindow(QMainWindow):
         self.current_model_path = None
 
         # Set button icons and sizes
-        self.record_btn.setIcon(QIcon(resource_path(os.path.join("icons", "mic.svg"))))
+        self.record_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "mic.svg")))
         self.record_btn.setFixedWidth(100)
-        self.search_btn.setIcon(QIcon(resource_path(os.path.join("icons", "search.svg"))))
+        self.search_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "search.svg")))
         self.search_btn.setFixedWidth(100)
-        self.save_del_btn.setIcon(QIcon(resource_path(os.path.join("icons", "save.svg"))))
+        self.save_del_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "save.svg")))
         self.save_del_btn.setFixedWidth(100)
 
         # Main Layout
@@ -196,6 +314,7 @@ class MainWindow(QMainWindow):
 
         # Show model dropdown only when in generate mode
         self.model_dropdown.setVisible(is_generate)
+        self.settings_btn.setVisible(is_generate)
 
         # Safely disconnect signal to prevent duplicates
         with contextlib.suppress(TypeError, RuntimeError):
@@ -204,12 +323,24 @@ class MainWindow(QMainWindow):
         # Reconfigure save button behavior and appearance
         if is_generate:
             self.save_del_btn.setToolTip("Save 3D Model")
-            self.save_del_btn.setIcon(QIcon(resource_path(os.path.join("icons", "save.svg"))))
+            self.save_del_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "save.svg")))
             self.save_del_btn.clicked.connect(self.handle_save)
         else:
             self.save_del_btn.setToolTip("Delete 3D Model")
-            self.save_del_btn.setIcon(QIcon(resource_path(os.path.join("icons", "rubbish.svg"))))
+            self.save_del_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "rubbish.svg")))
             self.save_del_btn.clicked.connect(self.handle_delete)
+
+    def open_settings_dialog(self):
+        model_name = self.model_dropdown.currentText().strip()
+        preset = self.per_model_cfg.get(model_name)
+        dlg = ConfigDialog(self, model_name, preset=preset)
+        if dlg.exec() == QDialog.Accepted:
+            cfg = dlg.values()
+            # keep whatever user set for this model
+            self.per_model_cfg[model_name] = cfg
+            self.message.setText("Settings saved.")
+        else:
+            self.message.setText("Settings unchanged.")
 
     # Turn recording on and off - need to add spacebar control
     def toggle_recording(self):
@@ -223,34 +354,25 @@ class MainWindow(QMainWindow):
             self.is_recording = False
             self.instruction_label.setText("Describe a 3D model by speaking or typing")
             self.record_btn.setText("")
-            self.record_btn.setIcon(QIcon(resource_path(os.path.join("icons", "mic.svg"))))
+            self.record_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "mic.svg")))
             self.audio_recorder.stop()
 
             try:
                 # Determine base path
-                # Need to go through all files and use resource path for this
-                if getattr(sys, 'frozen', False):
-                    base_path = os.path.dirname(sys.executable)
-                else:
-                    cwd = os.path.dirname(os.path.abspath(__file__))
-                    base_path = os.path.join(cwd, "bin")
+                base_path = get_app_dir()
                 print("Base path:", base_path)
-
-                self.TRANSCRIBE_BIN = os.path.join(base_path, "transcribe.exe")
+                self.transcribe_exe = os.path.join(base_path, "transcribe.exe")
 
                 audio_path = self.audio_recorder.filename
                 transcribe_input = {"audio_path": audio_path}
                 print("Audio path:", audio_path)
-                print("Transcribe bin:", self.TRANSCRIBE_BIN)
-                transcribe_output = Pipeline.run_stage(self.TRANSCRIBE_BIN, transcribe_input)
+                print("Transcribe bin:", self.transcribe_exe)
+                transcribe_output = Pipeline.run_stage(self.transcribe_exe, transcribe_input)
                 text = transcribe_output.get("transcription")
 
                 if not text:
                     self.message.setText("Transcription failed.")
                     return
-
-                # If generate, after recording, it shows the user what they have recorded, and 
-                # then asks them if they want to proceed with generation.
 
                 self.message.setText(text)
                 if self.is_generate_mode():
@@ -303,10 +425,15 @@ class MainWindow(QMainWindow):
         self.elapsed_timer.start(100)
 
         try:
-            pipe = Pipeline()
             model_name = self.model_dropdown.currentText().strip()
             print("Model name: ", model_name)
-            result = pipe.run_pipeline(text, model_name)
+
+            # Use saved settings if available; otherwise start from model defaults
+            cfg = dict(defaults_for(model_name))
+            cfg.update(self.per_model_cfg.get(model_name, {}))
+
+            pipe = Pipeline()
+            result = pipe.run_pipeline(text, model_name, cfg)
 
             self.message.setText(f"Model for: {result['text']}")
             print("Model path/name:", result['model'])
@@ -351,7 +478,7 @@ class MainWindow(QMainWindow):
             filename += ".obj"
 
         try:
-            download_dir = os.path.join(get_writable_viewer_assets(), "3d_models")
+            download_dir = os.path.join(get_viewer_assets(), "3d_assets")
             os.makedirs(download_dir, exist_ok=True)
 
             dest_path = os.path.join(download_dir, filename)
@@ -399,7 +526,8 @@ def load_stylesheet(filename):
 if __name__ == '__main__':
     multiprocessing.freeze_support()
     app = QApplication(sys.argv)
-    app.setStyleSheet(load_stylesheet("style.qss"))
+    style_sheet = os.path.join(get_data_dir(), "style.qss")
+    app.setStyleSheet(load_stylesheet(style_sheet))
     window = MainWindow()
     window.show()
     sys.exit(app.exec())

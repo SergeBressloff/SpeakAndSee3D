@@ -2,24 +2,17 @@ from sentence_transformers import SentenceTransformer, util
 import torch
 import json
 import os
-from utils import resource_path, get_writable_viewer_assets
+from utils import get_models_dir, get_viewer_assets
 
 class ModelSelector:
-    def __init__(self, desc_file = os.path.join(get_writable_viewer_assets(), "model_descriptions.json")):
-        model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin", "models", "all-MiniLM-L6-v2")
+    def __init__(self):
+        model_path = os.path.join(get_models_dir(), "all-MiniLM-L6-v2")
         self.model = SentenceTransformer(model_path)
 
-        self.desc_file = resource_path(desc_file)
-        self.model_descriptions = self.load_descriptions_from_multiple_sources()
+        self.desc_file = os.path.join(get_viewer_assets(), "model_descriptions.json")
+        self.model_descriptions = self.load_descriptions(self.desc_file)
         self.descriptions = list(self.model_descriptions.values())
         self.embeddings = self.model.encode(self.descriptions, convert_to_tensor=True)
-    
-    # Maybe need to copy over viewer_assets once, when the app first loads in main.py
-    # Then always load everything from writable_viewer_assets?
-    def load_descriptions_from_multiple_sources(self):
-        bundled = self.load_descriptions(resource_path(os.path.join("viewer_assets", "model_descriptions.json")))
-        user = self.load_descriptions(os.path.join(get_writable_viewer_assets(), "model_descriptions.json"))
-        return {**bundled, **user}
     
     def load_descriptions(self, filepath):
         try:
@@ -54,7 +47,6 @@ class ModelSelector:
         query_embedding = self.model.encode(input_text, convert_to_tensor=True)
         scores = util.cos_sim(query_embedding, self.embeddings)[0]
         best_score = torch.max(scores).item()
-        print("Best score:", best_score)
         best_idx = torch.argmax(scores).item()
 
         if best_score < threshold:
@@ -63,16 +55,10 @@ class ModelSelector:
         filename = list(self.model_descriptions.keys())[best_idx]
         print("Filename:", filename)
 
-        bundled_path = resource_path(os.path.join("viewer_assets", "3d_models", filename))
-        print("Bundled path:", bundled_path)
-        user_path = os.path.join(get_writable_viewer_assets(), "3d_models", filename)
-        print("User path:", user_path)
+        model_path = os.path.join(get_viewer_assets(), "3d_assets", filename)
 
-        if os.path.isfile(user_path):
-            print("User path:", user_path, "Best score:", best_score)
-            return user_path, best_score
-        elif os.path.isfile(bundled_path):
-            print("Bundled path:", bundled_path, "Best score:", best_score)
-            return bundled_path, best_score
+        if os.path.isfile(model_path):
+            print("Model path:", model_path, "Best score:", best_score)
+            return model_path, best_score
         else:
             return None, 0.0

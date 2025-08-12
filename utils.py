@@ -1,24 +1,60 @@
-import os, sys, shutil
+import os, sys, shutil,builtins
 
-def resource_path(relative_path):
-    """
-    Get absolute path to resource, whether bundled by PyInstaller or run in dev.
-    """
-    if hasattr(sys, '_MEIPASS'):
-        # Running from PyInstaller bundle
-        base_path = sys._MEIPASS
+def get_app_dir():
+    if "__compiled__" in globals():
+        abs_pth = os.path.abspath(sys.argv[0])
+        app_dir = os.path.dirname(abs_pth)
     else:
-        # Running in development
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+    return app_dir
 
-def get_writable_viewer_assets():
-    if getattr(sys, 'frozen', False):
-        writable_dir = os.path.join(os.path.expanduser("~"), ".speak_and_see", "viewer_assets")
-        if not os.path.exists(writable_dir):
-            src = os.path.join(sys._MEIPASS, "viewer_assets")
-            shutil.copytree(src, writable_dir)
-        return writable_dir
+def get_models_dir():
+    """
+    Get absolute path to models dir, whether bundled by Nuitka or run in dev.
+    """
+    if "__compiled__" in globals():
+        app_dir = get_app_dir()
+        models_dir = os.path.join(app_dir, "models")
     else:
-        # In dev mode, just use the local folder
-        return os.path.abspath("viewer_assets")
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        models_dir = os.path.join(base_path, "models")
+    return models_dir
+
+def get_data_dir():
+    if "__compiled__" in globals():
+        app_dir = get_app_dir()
+        data_dir = os.path.join(app_dir, "data")
+        return data_dir
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        return base_path
+
+def get_viewer_assets():
+    """
+    Get absolute path to viewer_assets, whether bundled by Nuitka or run in dev.
+    """
+    if "__compiled__" in globals():
+        app_dir = get_app_dir()
+        viewer_assets = os.path.join(app_dir, "data", "viewer_assets")
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        viewer_assets = os.path.join(base_path, "viewer_assets")
+    return viewer_assets
+
+def get_icons_dir():
+    if "__compiled__" in globals():
+        app_dir = get_app_dir()
+        icons_dir = os.path.join(app_dir, "data", "icons")
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        icons_dir = os.path.join(base_path, "icons")
+    return icons_dir
+
+def get_audio_dir():
+    if "__compiled__" in globals():
+        app_dir = get_app_dir()
+        audio_dir = os.path.join(app_dir, "data", "audio")
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        audio_dir = os.path.join(base_path, "audio")
+    return audio_dir

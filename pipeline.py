@@ -1,26 +1,28 @@
 import subprocess, tempfile, json, os, sys
+from utils import get_app_dir
 
 # Determine base path
-if getattr(sys, 'frozen', False):
-    base_path = os.path.dirname(sys.executable)
-else:
-    cwd = os.path.dirname(os.path.abspath(__file__))
-    base_path = os.path.join(cwd, "bin")
+base_path = get_app_dir()
 print("Base path:", base_path)
 
-DIFFUSE_BIN = os.path.join(base_path, "diffuse.exe")
-GENERATE_BIN = os.path.join(base_path, "generate.exe")
+diffuse_exe = os.path.join(base_path, "diffuse_nui.exe")
+generate_exe = os.path.join(base_path, "generate_nui.exe")
+
+if not os.path.exists(diffuse_exe) or not os.path.exists(generate_exe):
+    print("[ERROR] Diffuse and generate executables need to be in the same folder as the main app.") 
 
 class Pipeline:
-    def run_pipeline(self, text, model_name="onnx-stable-diffusion-2-1"):
+    def run_pipeline(self, text, model_name="onnx-stable-diffusion-2-1", cfg=None):
         print("Running pipeline")
+        cfg = cfg or {}
 
         # Step 1: Diffuse image
         diffuse_input = { 
             "prompt": text,
-            "model_name": model_name 
+            "model_name": model_name,
+            **cfg
         }
-        diffuse_output = self.run_stage(DIFFUSE_BIN, diffuse_input)
+        diffuse_output = self.run_stage(diffuse_exe, diffuse_input)
         image_path = diffuse_output.get("image_path")
         print("Image path:", image_path)
 
@@ -29,13 +31,12 @@ class Pipeline:
 
         # Step 2: Generate 3D
         generate_input = { "image_path": image_path }
-        generate_output = self.run_stage(GENERATE_BIN, generate_input)
+        generate_output = self.run_stage(generate_exe, generate_input)
         model_path = generate_output.get("model_path")
         print("Model path:", model_path)
 
-        # REMEMBER, generate is returning just generated_model.glb instead of the whole file path. Need to change this.
-        # if not os.path.exists(model_path):
-            # raise RuntimeError("3D model generation failed")
+        if not os.path.exists(model_path):
+            raise RuntimeError("3D model generation failed")
 
         return {
             "text": text,
