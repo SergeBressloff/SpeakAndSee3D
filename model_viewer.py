@@ -1,17 +1,15 @@
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtCore import QUrl, QFileInfo
-from utils import resource_path, get_writable_viewer_assets
+from utils import get_viewer_assets
 import os
 
 class ModelViewer(QWebEngineView):
     def __init__(self, model_path=None, parent=None):
         super().__init__(parent)
 
-        VIEWER_ASSETS_DIR = get_writable_viewer_assets()
-        print("Viewer_assets_dir:", VIEWER_ASSETS_DIR)
+        viewer_assets_dir = get_viewer_assets()
 
-        local_html_path = os.path.join(VIEWER_ASSETS_DIR, "index.html")
-        print("local html path:", local_html_path)
+        local_html_path = os.path.join(viewer_assets_dir, "index.html")
         if not os.path.exists(local_html_path):
             raise FileNotFoundError("Missing HTML viewer at: " + local_html_path)
 
@@ -25,7 +23,6 @@ class ModelViewer(QWebEngineView):
             print(f"Model file does not exist: {model_filename}")
             return
         model_url = QUrl.fromLocalFile(model_filename).toString()
-        print("model_url: ", model_url)
         js_code = f"""
         if (typeof loadModel === 'function') {{
             loadModel('{model_url}');

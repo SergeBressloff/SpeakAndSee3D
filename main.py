@@ -13,24 +13,118 @@ from PySide6.QtWidgets import (
     QFileDialog, 
     QFileDialog,
     QInputDialog,
-    QFrame
+    QFrame,
+    QDialog, 
+    QFormLayout, 
+    QDialogButtonBox, 
+    QSpinBox, 
+    QDoubleSpinBox,
+    QTextBrowser,
+    QMessageBox
 )
-from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QRect
+from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QRect, QEvent, QUrl
 from PySide6.QtGui import QFont, QIcon
 from pipeline import Pipeline
 from audio_recorder import AudioRecorder
 from model_viewer import ModelViewer
 from model_selector import ModelSelector
-from utils import resource_path, get_writable_viewer_assets
+from utils import get_app_dir, get_data_dir, get_viewer_assets, get_models_dir, get_icons_dir
 import os, sys, multiprocessing, shutil
 import time
 import contextlib
+
+def is_flux(model_name: str) -> bool:
+    return "flux" in (model_name or "").lower()
+
+def is_lcm_dreamshaper(model_name: str) -> bool:
+    return (model_name or "").lower() == "lcm_dreamshaper_v7"
+
+def defaults_for(model_name: str) -> dict:
+    name = (model_name or "").lower()
+    if is_flux(name):
+        return {"steps": 4, "guidance_scale": 0.0, "max_sequence_length": 256, "seed": 0}
+    if is_lcm_dreamshaper(name):
+        return {"steps": 20, "guidance_scale": 1.5, "seed": 0}
+    # defaults
+    return {"steps": 20, "guidance_scale": 7.5, "seed": 0}
+
+
+class ConfigDialog(QDialog):
+    def __init__(self, parent, model_name: str, preset: dict | None = None):
+        super().__init__(parent)
+        self.setWindowTitle("Diffusion Configuration")
+        self.model_name = model_name
+        self._is_flux = is_flux(model_name)
+
+        # load model defaults, then overlay preset if provided
+        d = defaults_for(model_name)
+        if preset:
+            d.update({k: v for k, v in preset.items() if v is not None})
+
+        form = QFormLayout(self)
+
+        # Optional negative prompt
+        self.neg_prompt_edit = QLineEdit(self)
+        self.neg_prompt_edit.setPlaceholderText("Optional negative prompt")
+        self.neg_prompt_edit.setText(str(d.get("negative_prompt", "")))
+        form.addRow(QLabel("Negative Prompt:"), self.neg_prompt_edit)
+
+        # Steps
+        self.steps = QSpinBox(self)
+        self.steps.setRange(1, 200)
+        self.steps.setValue(int(d.get("steps", 20)))
+        form.addRow(QLabel("Steps:"), self.steps)
+
+        # Guidance
+        self.guidance = QDoubleSpinBox(self)
+        self.guidance.setDecimals(2)
+        self.guidance.setRange(0.0, 50.0)
+        self.guidance.setSingleStep(0.1)
+        self.guidance.setValue(float(d.get("guidance_scale", 7.5)))
+        form.addRow(QLabel("Guidance Scale:"), self.guidance)
+
+        # Flux-only: max_sequence_length
+        self.max_seq_label = QLabel("Max Sequence Length:")
+        self.max_seq = QSpinBox(self)
+        self.max_seq.setRange(32, 4096)
+        self.max_seq.setValue(int(d.get("max_sequence_length", 256)))
+        if self._is_flux:
+            form.addRow(self.max_seq_label, self.max_seq)
+        else:
+            self.max_seq_label.hide()
+            self.max_seq.hide()
+
+        # Seed
+        self.seed = QSpinBox(self)
+        self.seed.setRange(0, 2**31 - 1)
+        self.seed.setValue(int(d.get("seed", 0)))
+        form.addRow(QLabel("Seed:"), self.seed)
+
+        # OK/Cancel
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        form.addWidget(buttons)
+
+    def values(self) -> dict:
+        cfg = {
+            "steps": int(self.steps.value()),
+            "guidance_scale": float(self.guidance.value()),
+            "seed": int(self.seed.value()),
+        }
+        neg = self.neg_prompt_edit.text().strip()
+        if neg:
+            cfg["negative_prompt"] = neg
+        if is_flux(self.model_name):
+            cfg["max_sequence_length"] = int(self.max_seq.value())
+        return cfg
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Speak & See 3D")
-        self.setGeometry(600, 600, 600, 700)
+        self.setGeometry(800, 600, 800, 700)
 
         # Title
         self.title = QLabel("Speak & See 3D")
@@ -48,16 +142,52 @@ class MainWindow(QMainWindow):
         self.title.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         self.instruction_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
 
+        # Help + About Buttons
+        self.help_btn = QPushButton("")
+        self.help_btn.setToolTip("Help / Shortcuts")
+        self.help_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "help.svg")))
+        self.help_btn.setFixedWidth(100)
+        self.help_btn.clicked.connect(self.show_help_dialog)
+
+        self.about_btn = QPushButton("")
+        self.about_btn.setToolTip("About Speak & See 3D")
+        self.about_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "info.svg")))
+        self.about_btn.setFixedWidth(100)
+        self.about_btn.clicked.connect(self.show_about_dialog)
+
         # Title block
+        button_bar = QWidget()
+        bbx = QHBoxLayout(button_bar)
+        bbx.setContentsMargins(0, 0, 0, 0)
+        bbx.setSpacing(6)
+        bbx.addWidget(self.help_btn)
+        bbx.addWidget(self.about_btn)
+        button_bar.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+        # Create a left balancer with same width as the button bar,
+        # so the title stays visually centered.
+        left_balancer = QWidget()
+        left_balancer.setFixedWidth(button_bar.sizeHint().width())
+        left_balancer.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+        title_row = QHBoxLayout()
+        title_row.setContentsMargins(0, 0, 0, 0)
+        title_row.setSpacing(8)
+        title_row.addWidget(left_balancer)           # left side weight
+        title_row.addWidget(self.title, 1)           # stretch the title
+        title_row.addWidget(button_bar)              # right buttons
+
         title_block = QVBoxLayout()
         title_block.setSpacing(2)
         title_block.setContentsMargins(0, 0, 0, 0)
-        title_block.addWidget(self.title, alignment=Qt.AlignCenter)
+        title_block.addLayout(title_row)
         title_block.addWidget(self.instruction_label, alignment=Qt.AlignCenter)
 
         # Input Row: Voice + Text
         self.record_btn = QPushButton("")
-        self.record_btn.setToolTip("Use your voice to describe the model")
+        self.record_btn.setToolTip("Use your voice to describe a 3D model")
+        self.record_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "mic.svg")))
+        self.record_btn.setFixedWidth(100)
         self.is_recording = False
         self.audio_recorder = AudioRecorder()
         self.record_btn.clicked.connect(self.toggle_recording)
@@ -68,9 +198,9 @@ class MainWindow(QMainWindow):
 
         self.search_btn = QPushButton("")
         self.search_btn.setToolTip("Search for a model using the typed description")
+        self.search_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "search.svg")))
+        self.search_btn.setFixedWidth(100)
         self.search_btn.clicked.connect(self.handle_text_input)
-
-        self.text_input.returnPressed.connect(self.handle_text_input)
 
         input_row_layout = QHBoxLayout()
         input_row_layout.addStretch()
@@ -84,7 +214,9 @@ class MainWindow(QMainWindow):
         # Mode Toggle: Load or Generate
         self.mode_toggle_layout = QHBoxLayout()
         self.load_btn = QPushButton("Load")
+        self.load_btn.setToolTip("Load a saved 3D model")
         self.generate_btn = QPushButton("Generate")
+        self.generate_btn.setToolTip("Generate a new 3D model")
 
         for btn in [self.load_btn, self.generate_btn]:
             btn.setCheckable(True)
@@ -100,21 +232,49 @@ class MainWindow(QMainWindow):
         self.mode_toggle_layout.addStretch()
 
         # Model Dropdown
+        models_dir = get_models_dir()
         self.model_dropdown = QComboBox()
-        self.model_dropdown.addItems([
-            "onnx-stable-diffusion-2-1",
-            "flux_1_schnell",
-            "LCM_Dreamshaper_v7"
-        ])
+        models = [
+            name for name in os.listdir(models_dir) 
+            # Exclude non-diffusion models
+            if name != ".DS_Store"
+            and name != "all-MiniLM-L6-v2"
+            and name != "TripoSR"
+        ]
+        self.model_dropdown.addItems(models)
         self.model_dropdown.setFixedWidth(250)
 
+        # Settings button (opens config dialog)
+        self.settings_btn = QPushButton("")
+        self.settings_btn.setToolTip("Configure generation settings")
+        gear_icon = (os.path.join(get_icons_dir(), "gear.svg"))
+        self.settings_btn.setIcon(QIcon(gear_icon))
+        self.settings_btn.clicked.connect(self.open_settings_dialog)
+
+        # store per-model settings here
+        self.per_model_cfg = {}
+
+        # model dropdown and config
         self.model_dropdown_container = QWidget()
         model_layout = QHBoxLayout(self.model_dropdown_container)
         model_layout.setContentsMargins(0, 0, 0, 0)
+        model_layout.addStretch()
         model_layout.addWidget(self.model_dropdown)
+        model_layout.addSpacing(8)
+        model_layout.addWidget(self.settings_btn)
+        model_layout.addStretch()
         self.model_dropdown_container.setFixedHeight(40)
 
         self.model_dropdown.setVisible(False)  # hidden initially
+        self.settings_btn.setVisible(False)
+
+        self.model_dropdown.currentTextChanged.connect(
+            lambda _: self.message.setText(
+                "Using saved settings for this model"
+                if self.model_dropdown.currentText() in self.per_model_cfg
+                else "Using defaults for this model"
+            )
+        )
 
         # Timer
         self.timer_label = QLabel("")
@@ -125,6 +285,7 @@ class MainWindow(QMainWindow):
 
         # Save/Delete 3D Model
         self.save_del_btn = QPushButton("")
+        self.save_del_btn.setFixedWidth(100)
 
         # Message
         self.message = QLabel("")
@@ -143,13 +304,9 @@ class MainWindow(QMainWindow):
         self.selector = ModelSelector()
         self.current_model_path = None
 
-        # Set button icons and sizes
-        self.record_btn.setIcon(QIcon(resource_path(os.path.join("icons", "mic.svg"))))
-        self.record_btn.setFixedWidth(100)
-        self.search_btn.setIcon(QIcon(resource_path(os.path.join("icons", "search.svg"))))
-        self.search_btn.setFixedWidth(100)
-        self.save_del_btn.setIcon(QIcon(resource_path(os.path.join("icons", "save.svg"))))
-        self.save_del_btn.setFixedWidth(100)
+        # Prevent buttons from grabbing keyboard focus so Space/Enter won't click them
+        for btn in [self.record_btn, self.search_btn, self.load_btn, self.generate_btn, self.settings_btn, self.save_del_btn, self.help_btn, self.about_btn]:
+            btn.setFocusPolicy(Qt.NoFocus)
 
         # Main Layout
         layout = QVBoxLayout()
@@ -175,7 +332,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.viewer, stretch=1)
 
         layout.setStretch(0, 0)  # top_wrapper
-        layout.setStretch(1, 1)  # viewer expands
+        layout.setStretch(1, 1)  # viewer takes rest of space
 
         # Set as central widget
         container = QWidget()
@@ -185,10 +342,24 @@ class MainWindow(QMainWindow):
         # Set default to load
         self.set_mode("Load")
 
+        # Set up event filters
+        self.installEventFilter(self)
+        self.centralWidget().installEventFilter(self)
+        self.viewer.installEventFilter(self)
+
+        # Let non-edit areas take focus when clicked
+        self.viewer.setFocusPolicy(Qt.ClickFocus)        # viewer can grab focus on click
+        self.model_dropdown.setFocusPolicy(Qt.StrongFocus)  # dropdown focusable so can cycle through models
+        self.centralWidget().setFocusPolicy(Qt.ClickFocus)  # allow clicks on empty areas to clear focus
+
+        self.text_input.clearFocus() # stop text input from taking focus on app launch
+        self.setFocus(Qt.OtherFocusReason) # give the main window focus
+
     # Determine whether in generate mode
     def is_generate_mode(self):
         return self.generate_btn.isChecked()
 
+    # change functionality depending on mode
     def set_mode(self, mode):
         is_generate = mode == "generate"
         self.load_btn.setChecked(not is_generate)
@@ -196,22 +367,177 @@ class MainWindow(QMainWindow):
 
         # Show model dropdown only when in generate mode
         self.model_dropdown.setVisible(is_generate)
+        self.settings_btn.setVisible(is_generate)
 
-        # Safely disconnect signal to prevent duplicates
+        # Safely disconnect signal from save/delete button
         with contextlib.suppress(TypeError, RuntimeError):
             self.save_del_btn.clicked.disconnect()
 
-        # Reconfigure save button behavior and appearance
+        # Switch between save and delete depending on mode
         if is_generate:
             self.save_del_btn.setToolTip("Save 3D Model")
-            self.save_del_btn.setIcon(QIcon(resource_path(os.path.join("icons", "save.svg"))))
+            self.save_del_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "save.svg")))
             self.save_del_btn.clicked.connect(self.handle_save)
         else:
             self.save_del_btn.setToolTip("Delete 3D Model")
-            self.save_del_btn.setIcon(QIcon(resource_path(os.path.join("icons", "rubbish.svg"))))
+            self.save_del_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "rubbish.svg")))
             self.save_del_btn.clicked.connect(self.handle_delete)
 
-    # Turn recording on and off - need to add spacebar control
+    # About Dialog
+    def show_about_dialog(self):
+        about_text = (
+            "Developed by: Serge Bressloff\n"
+            "Supervised by: Prof. Dean Mohamedally\n"
+            "In collaboration with: Intel Corp and Cisco\n"
+            "University College London (c) 2025+\n"
+            "Published by MotionInput Games Ltd."
+        )
+        QMessageBox.about(self, "About Speak & See 3D", about_text)
+
+    # Help dialog
+    def show_help_dialog(self):
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Help — Speak & See 3D")
+        dlg.resize(450, 550)
+
+        v = QVBoxLayout(dlg)
+        browser = QTextBrowser(dlg)
+
+        # Try load an external help page from your data dir
+        help_path = os.path.join(get_data_dir(), "help.html")
+        if os.path.exists(help_path):
+            browser.setSource(QUrl.fromLocalFile(help_path))
+        else:
+            # Fallback: built-in help with current shortcuts
+            browser.setHtml("""
+            <h1>Speak &amp; See 3D — Help</h1>
+            <h2>Keyboard shortcuts:</h2>
+            <table border="1" cellpadding="6" cellspacing="0">
+            <tr><th>Key</th><th>Context</th><th>Action</th></tr>
+            <tr><td><b>Space</b></td><td>Global (not typing)</td><td>Start/stop voice recording</td></tr>
+            <tr><td><b>T</b></td><td>Global (not typing)</td><td>Enter text input</td></tr>
+            <tr><td><b>Enter</b></td><td>When typing</td><td>Search / Run</td></tr>
+            <tr><td><b>Esc</b></td><td>When typing</td><td>Exit text input</td></tr>
+            <tr><td><b>← →</b></td><td>Global (not typing)</td><td>Toggle Load / Generate mode</td></tr>
+            <tr><td><b>↑ ↓</b></td><td>Generate mode</td><td>Cycle diffusion models</td></tr>
+            <tr><td><b>S</b></td><td>Generate mode</td><td>Save generated model</td></tr>
+            <tr><td><b>C</b></td><td>Generate mode</td><td>Open generation configuration</td></tr>
+            <tr><td><b>D</b></td><td>Load mode</td><td>Delete current model</td></tr>
+            <tr><td><b>F1</b></td><td>Global</td><td>Open this Help</td></tr>
+            </table>
+            <p>You can also click outside the text box to leave typing mode.</p>
+            """)
+        v.addWidget(browser)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Close, parent=dlg)
+        buttons.rejected.connect(dlg.reject)  # Close
+        v.addWidget(buttons)
+
+        dlg.exec()
+
+    # settings dialog. Shows defaults unless user has changed them
+    def open_settings_dialog(self):
+        model_name = self.model_dropdown.currentText().strip()
+        preset = self.per_model_cfg.get(model_name)
+        dlg = ConfigDialog(self, model_name, preset=preset)
+        if dlg.exec() == QDialog.Accepted:
+            cfg = dlg.values()
+            self.per_model_cfg[model_name] = cfg # keep whatever user set for this model
+            self.message.setText("Settings saved.")
+        else:
+            self.message.setText("Settings unchanged.")
+
+    # Keyboard shortcuts
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.MouseButtonPress:
+            gp = event.globalPosition().toPoint() # Which widget is under the mouse?
+            w = QApplication.widgetAt(gp)
+            if w and w is not self.text_input and not self.text_input.isAncestorOf(w):
+                self.text_input.clearFocus()
+                # If the target can take focus, give it focus so caret visibly leaves the line edit
+                if w.focusPolicy() != Qt.NoFocus:
+                    w.setFocus(Qt.MouseFocusReason)
+            return False  # keep normal click behavior
+
+        if event.type() != QEvent.KeyPress:
+            return super().eventFilter(obj, event)
+
+        key = event.key()
+        mods = event.modifiers()
+
+        # typing in the text field?
+        typing = self.text_input.hasFocus()
+
+        # --- SPACE: toggle recording (unless actively typing) ---
+        if not typing and key == Qt.Key_Space:
+            self.toggle_recording()
+            return True
+
+        # --- ENTER/RETURN: trigger search ---
+        if typing and key in (Qt.Key_Return, Qt.Key_Enter):
+            self.handle_text_input()
+            return True
+
+        # --- LEFT/RIGHT: toggle mode (ignore when typing) ---
+        if not typing and key in (Qt.Key_Left, Qt.Key_Right):
+            if key == Qt.Key_Left:
+                self.set_mode("Load")
+            else:
+                self.set_mode("generate")
+            return True
+
+        # --- UP/DOWN: cycle model dropdown (only in Generate mode, ignore while typing) ---
+        if not typing and key in (Qt.Key_Up, Qt.Key_Down) and self.is_generate_mode():
+            idx = self.model_dropdown.currentIndex()
+            count = self.model_dropdown.count()
+            if count > 0:
+                if key == Qt.Key_Up:
+                    idx = (idx - 1) % count
+                else:
+                    idx = (idx + 1) % count
+                self.model_dropdown.setCurrentIndex(idx)
+            return True
+
+        # --- 'T' to input text
+        if key == Qt.Key_T and not typing:
+            self.text_input.setFocus(Qt.ShortcutFocusReason)
+            self.text_input.setCursorPosition(len(self.text_input.text())) # puts caret at end
+            return True
+
+        # --- ESC to clear focus from the text input ---
+        if key == Qt.Key_Escape and typing:
+            self.text_input.clearFocus()
+            self.setFocus(Qt.OtherFocusReason)  # return focus to main window
+            return True
+
+        # --- 'S' to save (only if Save is the active action i.e., Generate mode) ---
+        if key == Qt.Key_S and mods == Qt.NoModifier and self.is_generate_mode():
+            self.handle_save()
+            return True
+
+        # --- 'C' for config (only if config button is visible i.e., Geneate mode) ---
+        if key == Qt.Key_C and mods == Qt.NoModifier and self.is_generate_mode():
+            self.open_settings_dialog()
+            return True
+
+        # --- 'D' to delete (only if Delete is the active action i.e., Load mode) ---
+        if key == Qt.Key_D and mods == Qt.NoModifier and not self.is_generate_mode():
+            self.handle_delete()
+            return True
+
+        # --- F1: open Help ---
+        if key == Qt.Key_F1:
+            self.show_help_dialog()
+            return True
+
+        # --- 'I' to open info/About box ---
+        if key == Qt.Key_I and not typing:
+            self.show_about_dialog()
+            return True
+
+        return super().eventFilter(obj, event)
+
+    # Turn recording on and off
     def toggle_recording(self):
         if not self.is_recording:
             self.is_recording = True
@@ -223,34 +549,24 @@ class MainWindow(QMainWindow):
             self.is_recording = False
             self.instruction_label.setText("Describe a 3D model by speaking or typing")
             self.record_btn.setText("")
-            self.record_btn.setIcon(QIcon(resource_path(os.path.join("icons", "mic.svg"))))
+            self.record_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "mic.svg")))
             self.audio_recorder.stop()
 
             try:
-                # Determine base path
-                # Need to go through all files and use resource path for this
-                if getattr(sys, 'frozen', False):
-                    base_path = os.path.dirname(sys.executable)
-                else:
-                    cwd = os.path.dirname(os.path.abspath(__file__))
-                    base_path = os.path.join(cwd, "bin")
-                print("Base path:", base_path)
+                base_path = get_app_dir() # Determine base path to main executable
+                self.transcribe_exe = os.path.join(base_path, "transcribe.exe") # Transcribe executable next to main executable
 
-                self.TRANSCRIBE_BIN = os.path.join(base_path, "transcribe.exe")
+                if not os.path.exists(self.transcribe_exe):
+                    print("[ERROR] Transcribe executable needs to be in the same folder as the main app.") 
 
                 audio_path = self.audio_recorder.filename
                 transcribe_input = {"audio_path": audio_path}
-                print("Audio path:", audio_path)
-                print("Transcribe bin:", self.TRANSCRIBE_BIN)
-                transcribe_output = Pipeline.run_stage(self.TRANSCRIBE_BIN, transcribe_input)
+                transcribe_output = Pipeline.run_stage(self.transcribe_exe, transcribe_input)
                 text = transcribe_output.get("transcription")
 
                 if not text:
                     self.message.setText("Transcription failed.")
                     return
-
-                # If generate, after recording, it shows the user what they have recorded, and 
-                # then asks them if they want to proceed with generation.
 
                 self.message.setText(text)
                 if self.is_generate_mode():
@@ -261,17 +577,6 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 self.message.setText("Error processing audio.")
                 print("[ERROR]", e)
-
-    # Use spacebar to start/stop recording
-    def keyPressEvent(self, event):
-        # Ignore spacebar if typing in the text input
-        if self.text_input.hasFocus():
-            return super().keyPressEvent(event)
-
-        if event.key() == Qt.Key_Space:
-            self.toggle_recording()
-        else:
-            super().keyPressEvent(event)
 
     # text input
     def handle_text_input(self):
@@ -288,7 +593,6 @@ class MainWindow(QMainWindow):
     # Load from text
     def load_model_from_text(self, text):
         model_file, score = self.selector.get_best_match(text)
-        print("Model file:", model_file)
         if model_file:
             # self.message.setText(f"{text} (matched: {model_file}, score={score:.2f})")
             self.viewer.load_model(model_file)
@@ -303,13 +607,17 @@ class MainWindow(QMainWindow):
         self.elapsed_timer.start(100)
 
         try:
-            pipe = Pipeline()
             model_name = self.model_dropdown.currentText().strip()
-            print("Model name: ", model_name)
-            result = pipe.run_pipeline(text, model_name)
+            print("Using diffusion model: ", model_name)
 
-            self.message.setText(f"Model for: {result['text']}")
-            print("Model path/name:", result['model'])
+            # Use saved settings if available; otherwise start from model defaults
+            cfg = dict(defaults_for(model_name))
+            cfg.update(self.per_model_cfg.get(model_name, {}))
+
+            pipe = Pipeline()
+            result = pipe.run_pipeline(text, model_name, cfg)
+
+            self.message.setText(f"3D asset for: {result['text']}")
             self.viewer.load_model(result['model'])
             self.current_model_path = result['model']
 
@@ -330,14 +638,12 @@ class MainWindow(QMainWindow):
 
     # Save a generated model
     def handle_save(self):
-        print("[DEBUG] current_model_path:", self.current_model_path)
 
         if not self.current_model_path:
             self.message.setText("No model to save.")
             return
 
         if not os.path.isfile(self.current_model_path):
-            print("[DEBUG] File does not exist:", self.current_model_path)
             self.message.setText("No model to save. (File does not exist)")
             return
 
@@ -351,17 +657,11 @@ class MainWindow(QMainWindow):
             filename += ".obj"
 
         try:
-            download_dir = os.path.join(get_writable_viewer_assets(), "3d_models")
+            download_dir = os.path.join(get_viewer_assets(), "3d_assets")
             os.makedirs(download_dir, exist_ok=True)
 
             dest_path = os.path.join(download_dir, filename)
-            print("[DEBUG] dest path:", dest_path)
-
-            print("[DEBUG] Source exists before copy:", os.path.exists(self.current_model_path))
-
             shutil.copy(self.current_model_path, dest_path)
-
-            print("[DEBUG] Destination exists after copy:", os.path.exists(dest_path))
 
             description, ok = QInputDialog.getText(self, "Model Description", "Enter description for the uploaded model:")
             if ok and description.strip():
@@ -399,7 +699,8 @@ def load_stylesheet(filename):
 if __name__ == '__main__':
     multiprocessing.freeze_support()
     app = QApplication(sys.argv)
-    app.setStyleSheet(load_stylesheet("style.qss"))
+    style_sheet = os.path.join(get_data_dir(), "style.qss")
+    app.setStyleSheet(load_stylesheet(style_sheet))
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
