@@ -1,10 +1,8 @@
 {
-  "prompt": "A futuristic city skyline at sunset, cinematic lighting",
-  "model_name": "LCM_Dreamshaper_v7",
-  "pipeline": "auto",
-  "steps": 20,
-  "guidance_scale": 7.5,
+  "prompt": "A 3D model of a shark",
+  "model_name": "flux_1_schnell",
+  "steps": 4,
+  "guidance_scale": 0,
   "negative_prompt": "blurry, low resolution, bad anatomy",
-  "seed": 1234,
-  "dtype": "float16"
+  "seed": 0
 }
