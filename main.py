@@ -159,7 +159,7 @@ class MainWindow(QMainWindow):
         self.theme_btn.clicked.connect(self.toggle_theme)
         self.viewer_theme = "dark"
 
-        # Title block
+        # Button bar
         button_bar = QWidget()
         bbx = QHBoxLayout(button_bar)
         bbx.setContentsMargins(0, 0, 0, 0)
@@ -175,6 +175,7 @@ class MainWindow(QMainWindow):
         left_balancer.setFixedWidth(button_bar.sizeHint().width())
         left_balancer.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
+        # Title block
         title_row = QHBoxLayout()
         title_row.setContentsMargins(0, 0, 0, 0)
         title_row.setSpacing(8)
@@ -290,7 +291,26 @@ class MainWindow(QMainWindow):
 
         # Save/Delete 3D Model
         self.save_del_btn = QPushButton("")
-        self.save_del_btn.setFixedWidth(100)
+
+        # Import 3D model
+        self.import_btn = QPushButton("")
+        self.import_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "import.svg")))
+        self.import_btn.clicked.connect(self.handle_import)
+
+        # Export 3D model
+        self.export_btn = QPushButton("")
+        self.export_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "export.svg")))
+        self.export_btn.clicked.connect(self.handle_export)
+
+        # Button bar
+        button_bar_2 = QWidget()
+        bbx = QHBoxLayout(button_bar_2)
+        bbx.setContentsMargins(0, 0, 0, 0)
+        bbx.setSpacing(6)
+        bbx.addWidget(self.import_btn)
+        bbx.addWidget(self.export_btn)
+        bbx.addWidget(self.save_del_btn)
+        button_bar_2.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
         # Message
         self.message = QLabel("")
@@ -302,7 +322,7 @@ class MainWindow(QMainWindow):
         footer_layout.addStretch()
         footer_layout.addWidget(self.timer_label)
         footer_layout.addStretch()
-        footer_layout.addWidget(self.save_del_btn)
+        footer_layout.addWidget(button_bar_2)
 
         # Viewer/selector setup
         self.viewer = ModelViewer()
@@ -424,7 +444,7 @@ class MainWindow(QMainWindow):
     def show_help_dialog(self):
         dlg = QDialog(self)
         dlg.setWindowTitle("Help — Speak & See 3D")
-        dlg.resize(450, 620)
+        dlg.resize(600, 700)
 
         v = QVBoxLayout(dlg)
         browser = QTextBrowser(dlg)
@@ -434,27 +454,8 @@ class MainWindow(QMainWindow):
         if os.path.exists(help_path):
             browser.setSource(QUrl.fromLocalFile(help_path))
         else:
-            # Fallback: built-in help with current shortcuts
-            browser.setHtml("""
-            <h1>Speak &amp; See 3D — Help</h1>
-            <h2>Keyboard shortcuts:</h2>
-            <table border="1" cellpadding="6" cellspacing="0">
-            <tr><th>Key</th><th>Context</th><th>Action</th></tr>
-            <tr><td><b>Space</b></td><td>Global (not typing)</td><td>Start/stop voice recording</td></tr>
-            <tr><td><b>T</b></td><td>Global (not typing)</td><td>Enter text input</td></tr>
-            <tr><td><b>Enter</b></td><td>When typing</td><td>Search / Run</td></tr>
-            <tr><td><b>Esc</b></td><td>When typing</td><td>Exit text input</td></tr>
-            <tr><td><b>← →</b></td><td>Global (not typing)</td><td>Toggle Load / Generate mode</td></tr>
-            <tr><td><b>↑ ↓</b></td><td>Generate mode</td><td>Cycle diffusion models</td></tr>
-            <tr><td><b>S</b></td><td>Generate mode</td><td>Save generated model</td></tr>
-            <tr><td><b>C</b></td><td>Generate mode</td><td>Open generation configuration</td></tr>
-            <tr><td><b>D</b></td><td>Load mode</td><td>Delete current model</td></tr>
-            <tr><td><b>F1</b></td><td>Global</td><td>Open Help</td></tr>
-            <tr><td><b>I</b></td><td>Global (not typing)</td><td>Open Info</td></tr>
-            <tr><td><b>L</b></td><td>Global</td><td>Toggle lighting</td></tr>
-            </table>
-            <p>You can also click outside the text box to leave typing mode.</p>
-            """)
+            print("[ERROR] Help file has been removed from the data directory.")
+
         v.addWidget(browser)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Close, parent=dlg)
@@ -723,6 +724,67 @@ class MainWindow(QMainWindow):
             self.message.setText(f"Deleted: {filename}")
         except Exception as e:
             self.message.setText(f"Error deleting file: {str(e)}")
+
+    # Upload a 3D asset
+    def handle_import(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select 3D Model File",
+            "",
+            "3D Model Files (*.glb *.obj);;GLB Files (*.glb);;OBJ Files (*.obj)"
+        )
+
+        if file_path and os.path.isfile(file_path):
+            filename = os.path.basename(file_path)
+
+            # Copy file to viewer_assets directory
+            try:
+                upload_dir = os.path.join(get_viewer_assets(), "3d_assets")
+                dest_path = os.path.join(upload_dir, filename)
+                with open(file_path, "rb") as src, open(dest_path, "wb") as dst:
+                    dst.write(src.read())
+            except Exception as e:
+                self.message.setText(f"Error saving file: {str(e)}")
+                return
+
+            # Ask user for description
+            description, ok = QInputDialog.getText(self, "Model Description", "Enter description for the uploaded model:")
+            if ok and description.strip():
+                self.selector.add_model(filename, description.strip())
+                self.message.setText(f"Uploaded: {filename}")
+                self.viewer.load_model(dest_path)
+            else:
+                self.message.setText("Upload canceled: No description entered.")
+        else:
+            self.message.setText("No valid file selected.")
+
+    def handle_export(self):
+        if not self.current_model_path or not os.path.isfile(self.current_model_path):
+            self.message.setText("No model loaded to export.")
+            return
+
+        src_path = self.current_model_path
+        src_ext = os.path.splitext(src_path)[1].lower()
+
+        base_name = os.path.basename(self.current_model_path)
+        default_path = os.path.join(os.path.expanduser("~"), base_name)
+        filter_str = "GLB (*.glb)" if src_ext == ".glb" else "OBJ (*.obj)"
+        dest_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Model",
+            default_path,
+            filter_str
+        )
+        if not dest_path:
+            self.message.setText("Export canceled.")
+            return
+
+        try:
+            os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+            shutil.copy2(src_path, dest_path)
+            self.message.setText(f"Exported: {os.path.basename(dest_path)}")
+        except Exception as e:
+            self.message.setText(f"Export failed: {e}")
 
 def load_stylesheet(filename):
     with open(filename, "r") as f:
