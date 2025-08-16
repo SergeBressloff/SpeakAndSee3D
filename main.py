@@ -20,7 +20,8 @@ from PySide6.QtWidgets import (
     QSpinBox, 
     QDoubleSpinBox,
     QTextBrowser,
-    QMessageBox
+    QMessageBox,
+    QGridLayout
 )
 from PySide6.QtCore import Qt, QTimer, QPropertyAnimation, QRect, QEvent, QUrl
 from PySide6.QtGui import QFont, QIcon
@@ -32,6 +33,7 @@ from utils import get_app_dir, get_data_dir, get_viewer_assets, get_models_dir, 
 import os, sys, multiprocessing, shutil
 import time
 import contextlib
+import json
 
 def is_flux(model_name: str) -> bool:
     return "flux" in (model_name or "").lower()
@@ -248,7 +250,7 @@ class MainWindow(QMainWindow):
             and name != "TripoSR"
         ]
         self.model_dropdown.addItems(models)
-        self.model_dropdown.setFixedWidth(250)
+        self.model_dropdown.setMinimumWidth(240)
 
         # Settings button (opens config dialog)
         self.settings_btn = QPushButton("")
@@ -257,19 +259,34 @@ class MainWindow(QMainWindow):
         self.settings_btn.setIcon(QIcon(gear_icon))
         self.settings_btn.clicked.connect(self.open_settings_dialog)
 
-        # store per-model settings here
+        # store per-model settings
         self.per_model_cfg = {}
 
         # model dropdown and config
         self.model_dropdown_container = QWidget()
-        model_layout = QHBoxLayout(self.model_dropdown_container)
-        model_layout.setContentsMargins(0, 0, 0, 0)
-        model_layout.addStretch()
-        model_layout.addWidget(self.model_dropdown)
-        model_layout.addSpacing(8)
-        model_layout.addWidget(self.settings_btn)
-        model_layout.addStretch()
+        self.model_dropdown.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.model_dropdown_container.setFixedHeight(40)
+
+        outer = QHBoxLayout(self.model_dropdown_container)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        outer.addStretch()
+
+        row = QWidget()
+        row_l = QHBoxLayout(row)
+        row_l.setContentsMargins(0, 0, 0, 0)
+        row_l.setSpacing(0)
+
+        # Make some left padding to match the size of the settings button
+        left_pad = QWidget()
+        left_pad.setFixedWidth(self.settings_btn.sizeHint().width())
+        row_l.addWidget(left_pad)
+        row_l.addWidget(self.model_dropdown)
+        row_l.addSpacing(8)
+        row_l.addWidget(self.settings_btn)
+
+        outer.addWidget(row, 0, Qt.AlignHCenter)
+        outer.addStretch()
 
         self.model_dropdown.setVisible(False)  # hidden initially
         self.settings_btn.setVisible(False)
@@ -294,13 +311,14 @@ class MainWindow(QMainWindow):
 
         # Import 3D model
         self.import_btn = QPushButton("")
+        self.import_btn.setToolTip("Import a 3D model")
         self.import_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "import.svg")))
         self.import_btn.clicked.connect(self.handle_import)
 
-        # Export 3D model
-        self.export_btn = QPushButton("")
-        self.export_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "export.svg")))
-        self.export_btn.clicked.connect(self.handle_export)
+        self.show_models_btn = QPushButton("")
+        self.show_models_btn.setToolTip("View names and descriptions of saved 3D models")
+        self.show_models_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "list.svg")))
+        self.show_models_btn.clicked.connect(self.show_models_dialog)
 
         # Button bar
         button_bar_2 = QWidget()
@@ -308,7 +326,7 @@ class MainWindow(QMainWindow):
         bbx.setContentsMargins(0, 0, 0, 0)
         bbx.setSpacing(6)
         bbx.addWidget(self.import_btn)
-        bbx.addWidget(self.export_btn)
+        bbx.addWidget(self.show_models_btn)
         bbx.addWidget(self.save_del_btn)
         button_bar_2.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
@@ -339,7 +357,9 @@ class MainWindow(QMainWindow):
             self.save_del_btn, 
             self.help_btn, 
             self.about_btn,
-            self.theme_btn
+            self.theme_btn,
+            self.import_btn,
+            self.show_models_btn
             ]:
             btn.setFocusPolicy(Qt.NoFocus)
 
@@ -569,13 +589,13 @@ class MainWindow(QMainWindow):
             self.toggle_theme()
             return True
 
-        # --- 'U' to upload 3D asset ---
+        # --- 'U' to import (upload) 3D asset ---
         if key == Qt.Key_U and not typing:
             self.handle_import()
 
-        # --- 'E' to export 3D asset ---
-        if key == Qt.Key_E and not typing:
-            self.handle_export()
+        # --- 'V' to view names and descriptions of saved 3D assets ---
+        if key == Qt.Key_V and not typing:
+            self.show_models_dialog()
 
         return super().eventFilter(obj, event)
 
@@ -650,11 +670,13 @@ class MainWindow(QMainWindow):
 
         try:
             model_name = self.model_dropdown.currentText().strip()
-            print("Using diffusion model: ", model_name)
+            print("Using diffusion model:", model_name)
 
             # Use saved settings if available; otherwise start from model defaults
             cfg = dict(defaults_for(model_name))
             cfg.update(self.per_model_cfg.get(model_name, {}))
+
+            self.message.setText("Generating 3D model. Please wait...")
 
             pipe = Pipeline()
             result = pipe.run_pipeline(text, model_name, cfg)
@@ -766,33 +788,66 @@ class MainWindow(QMainWindow):
         else:
             self.message.setText("No valid file selected.")
 
-    def handle_export(self):
-        if not self.current_model_path or not os.path.isfile(self.current_model_path):
-            self.message.setText("No model loaded to export.")
-            return
-
-        src_path = self.current_model_path
-        src_ext = os.path.splitext(src_path)[1].lower()
-
-        base_name = os.path.basename(self.current_model_path)
-        default_path = os.path.join(os.path.expanduser("~"), base_name)
-        filter_str = "GLB (*.glb)" if src_ext == ".glb" else "OBJ (*.obj)"
-        dest_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Export Model",
-            default_path,
-            filter_str
-        )
-        if not dest_path:
-            self.message.setText("Export canceled.")
-            return
-
+    # load 3D model descriptions from json file
+    def load_model_descriptions(self) -> dict:
         try:
-            os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-            shutil.copy2(src_path, dest_path)
-            self.message.setText(f"Exported: {os.path.basename(dest_path)}")
+            json_path = os.path.join(get_viewer_assets(), "model_descriptions.json")
+            if os.path.exists(json_path):
+                with open(json_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        return data
         except Exception as e:
-            self.message.setText(f"Export failed: {e}")
+            print("[WARN] Could not read model_descriptions.json:", e)
+
+    # show names and descriptions of 3D models
+    def show_models_dialog(self):
+        entries = self.load_model_descriptions()
+        if not entries:
+            QMessageBox.information(self, "Saved Models", "No saved models found.")
+            return
+
+        rows = []
+        rows.append("<table style='width:100%; border-collapse:collapse;'>")
+        rows.append("<thead><tr>"
+                    "<th style='text-align:left; border-bottom:1px solid #888; padding:4px;'>Filename</th>"
+                    "<th style='text-align:left; border-bottom:1px solid #888; padding:4px;'>Description</th>"
+                    "</tr></thead><tbody>")
+        for filename, desc in sorted(entries.items(), key=lambda kv: kv[0].lower()):
+            safe_name = self._escape_html(filename)
+            safe_desc = self._escape_html(desc) if desc else "<i>(no description)</i>"
+            rows.append(
+                f"<tr>"
+                f"<td style='padding:4px; vertical-align:top;'>{safe_name}</td>"
+                f"<td style='padding:4px; vertical-align:top;'>{safe_desc}</td>"
+                f"</tr>"
+            )
+        rows.append("</tbody></table>")
+        html = "\n".join(rows)
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Saved 3D Models")
+        dlg.resize(360, 480)
+
+        v = QVBoxLayout(dlg)
+        browser = QTextBrowser(dlg)
+        browser.setHtml(html)
+        v.addWidget(browser)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Close, parent=dlg)
+        buttons.rejected.connect(dlg.reject)
+        v.addWidget(buttons)
+
+        dlg.exec()
+
+    def _escape_html(self, s: str) -> str:
+        """Very small HTML escaper for filenames/descriptions."""
+        return (
+            s.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+        )
+
 
 def load_stylesheet(filename):
     with open(filename, "r") as f:

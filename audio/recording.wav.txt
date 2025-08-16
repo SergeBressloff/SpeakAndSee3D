@@ -1,1 +1,1 @@
- A train.
+ A 3D model of a horse.
