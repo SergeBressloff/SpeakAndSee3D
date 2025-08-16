@@ -142,18 +142,22 @@ class MainWindow(QMainWindow):
         self.title.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         self.instruction_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
 
-        # Help + About Buttons
+        # Help, About + Theme Buttons
         self.help_btn = QPushButton("")
         self.help_btn.setToolTip("Help / Shortcuts")
         self.help_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "help.svg")))
-        self.help_btn.setFixedWidth(100)
         self.help_btn.clicked.connect(self.show_help_dialog)
 
         self.about_btn = QPushButton("")
         self.about_btn.setToolTip("About Speak & See 3D")
         self.about_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "info.svg")))
-        self.about_btn.setFixedWidth(100)
         self.about_btn.clicked.connect(self.show_about_dialog)
+
+        self.theme_btn = QPushButton("")
+        self.theme_btn.setToolTip("Toggle viewer theme (Dark/Light)")
+        self.theme_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "moon.svg")))
+        self.theme_btn.clicked.connect(self.toggle_theme)
+        self.viewer_theme = "dark"
 
         # Title block
         button_bar = QWidget()
@@ -162,6 +166,7 @@ class MainWindow(QMainWindow):
         bbx.setSpacing(6)
         bbx.addWidget(self.help_btn)
         bbx.addWidget(self.about_btn)
+        bbx.addWidget(self.theme_btn)
         button_bar.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
         # Create a left balancer with same width as the button bar,
@@ -305,7 +310,17 @@ class MainWindow(QMainWindow):
         self.current_model_path = None
 
         # Prevent buttons from grabbing keyboard focus so Space/Enter won't click them
-        for btn in [self.record_btn, self.search_btn, self.load_btn, self.generate_btn, self.settings_btn, self.save_del_btn, self.help_btn, self.about_btn]:
+        for btn in [
+            self.record_btn, 
+            self.search_btn, 
+            self.load_btn, 
+            self.generate_btn, 
+            self.settings_btn, 
+            self.save_del_btn, 
+            self.help_btn, 
+            self.about_btn,
+            self.theme_btn
+            ]:
             btn.setFocusPolicy(Qt.NoFocus)
 
         # Main Layout
@@ -383,6 +398,17 @@ class MainWindow(QMainWindow):
             self.save_del_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "rubbish.svg")))
             self.save_del_btn.clicked.connect(self.handle_delete)
 
+    # switch theme
+    def toggle_theme(self):
+        if self.viewer_theme == "dark":
+            self.viewer_theme = "light"
+            self.theme_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "sun.svg")))
+        else:
+            self.viewer_theme = "dark"
+            self.theme_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "moon.svg")))
+        
+        self.viewer.set_theme(self.viewer_theme)
+
     # About Dialog
     def show_about_dialog(self):
         about_text = (
@@ -398,7 +424,7 @@ class MainWindow(QMainWindow):
     def show_help_dialog(self):
         dlg = QDialog(self)
         dlg.setWindowTitle("Help — Speak & See 3D")
-        dlg.resize(450, 550)
+        dlg.resize(450, 620)
 
         v = QVBoxLayout(dlg)
         browser = QTextBrowser(dlg)
@@ -423,7 +449,9 @@ class MainWindow(QMainWindow):
             <tr><td><b>S</b></td><td>Generate mode</td><td>Save generated model</td></tr>
             <tr><td><b>C</b></td><td>Generate mode</td><td>Open generation configuration</td></tr>
             <tr><td><b>D</b></td><td>Load mode</td><td>Delete current model</td></tr>
-            <tr><td><b>F1</b></td><td>Global</td><td>Open this Help</td></tr>
+            <tr><td><b>F1</b></td><td>Global</td><td>Open Help</td></tr>
+            <tr><td><b>I</b></td><td>Global (not typing)</td><td>Open Info</td></tr>
+            <tr><td><b>L</b></td><td>Global</td><td>Toggle lighting</td></tr>
             </table>
             <p>You can also click outside the text box to leave typing mode.</p>
             """)
@@ -533,6 +561,11 @@ class MainWindow(QMainWindow):
         # --- 'I' to open info/About box ---
         if key == Qt.Key_I and not typing:
             self.show_about_dialog()
+            return True
+
+        # --- 'L' to toggle theme (lighting) ---
+        if key == Qt.Key_L and not typing:
+            self.toggle_theme()
             return True
 
         return super().eventFilter(obj, event)

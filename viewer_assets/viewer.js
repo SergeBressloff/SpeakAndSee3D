@@ -10,6 +10,15 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0x222222);
 document.body.appendChild(renderer.domElement);
 
+// Switching theme
+let currentTheme = 'dark';
+function applyTheme(theme) {
+    currentTheme = (theme === 'light') ? 'light' : 'dark';
+    const bg = (currentTheme === 'light') ? 0xeeeeee : 0x222222;
+    renderer.setClearColor(bg, 1);
+}
+function setTheme(theme) { applyTheme(theme); }
+
 // Controls
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -25,15 +34,13 @@ scene.add(new THREE.DirectionalLight(0xffffff, 0.6));
 const gltfLoader = new GLTFLoader();
 const objLoader = new OBJLoader();
 let currentModel = null;
+let currentPivot = null;
 
 function loadModel(filePath) {
     const extension = filePath.split('.').pop().toLowerCase();
 
     // Remove any previous model
-    if (currentModel) {
-        scene.remove(currentModel);
-        currentModel = null;
-    }
+    clearModel();
 
     if (extension === 'glb' || extension === 'gltf') {
         gltfLoader.load(
@@ -42,7 +49,7 @@ function loadModel(filePath) {
                 currentModel = gltf.scene;
                 scene.add(currentModel);
                 centerAndPositionModel(currentModel);
-                currentModel.rotation.y = -Math.PI;
+                // currentModel.rotation.y = -Math.PI / 2;
             },
             undefined,
             (error) => {
@@ -55,9 +62,11 @@ function loadModel(filePath) {
             (obj) => {
                 currentModel = obj;
                 scene.add(currentModel);
+                scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+                scene.add(new THREE.DirectionalLight(0xffffff, 0.8));
                 centerAndPositionModel(currentModel);
                 currentModel.rotation.x = -Math.PI / 2;
-                currentModel.rotation.z = -Math.PI;
+                currentModel.rotation.z = -Math.PI / 2;
             },
             undefined,
             (error) => {
@@ -88,9 +97,10 @@ function clearModel() {
     }
 }
 
-// Expose globally so Python can call it
+// Expose globally so Python can call functions
 window.loadModel = loadModel;
 window.clearModel = clearModel;
+window.setTheme = setTheme;
 
 // Animation loop
 function animate() {
