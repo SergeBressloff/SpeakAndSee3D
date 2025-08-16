@@ -250,6 +250,12 @@ class MainWindow(QMainWindow):
             and name != "TripoSR"
         ]
         self.model_dropdown.addItems(models)
+
+        # make "dreamshaper" default if present
+        for i in range(self.model_dropdown.count()):
+            if "dreamshaper" in self.model_dropdown.itemText(i).lower():
+                self.model_dropdown.setCurrentIndex(i)
+                break
         self.model_dropdown.setMinimumWidth(240)
 
         # Settings button (opens config dialog)
@@ -430,7 +436,7 @@ class MainWindow(QMainWindow):
 
         # Switch between save and delete depending on mode
         if is_generate:
-            self.save_del_btn.setToolTip("Save 3D Model")
+            self.save_del_btn.setToolTip("Save 3D model")
             self.save_del_btn.setIcon(QIcon(os.path.join(get_icons_dir(), "save.svg")))
             self.save_del_btn.clicked.connect(self.handle_save)
         else:
