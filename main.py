@@ -569,6 +569,14 @@ class MainWindow(QMainWindow):
             self.toggle_theme()
             return True
 
+        # --- 'U' to upload 3D asset ---
+        if key == Qt.Key_U and not typing:
+            self.handle_import()
+
+        # --- 'E' to export 3D asset ---
+        if key == Qt.Key_E and not typing:
+            self.handle_export()
+
         return super().eventFilter(obj, event)
 
     # Turn recording on and off
