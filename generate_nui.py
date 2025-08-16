@@ -28,10 +28,10 @@ def alias_package_tree(src_pkg_name: str, alias_root: str) -> None:
                 alias = alias_root + fullname[len(src_pkg_name):]
                 sys.modules[alias] = mod
             except Exception:
-                # Non-fatal: skip anything weird
                 pass
 
 def run_triposr(image_path, model_path, output_dir):
+    # checks whether running from Nuitka build or in dev
     is_frozen = "__compiled__" in globals() or getattr(sys, "frozen", False)
 
     if is_frozen:
@@ -43,14 +43,12 @@ def run_triposr(image_path, model_path, output_dir):
 
         argv_backup = sys.argv[:]
         try:
-            # Emulate: python -m TripoSR.run <args>
             sys.argv = [
                 "TripoSR.run",
                 image_path,
                 "--pretrained-model-name-or-path", model_path,
                 "--output-dir", output_dir,
             ]
-            # Importing executes run.py immediately (it parses argparse at top-level)
             importlib.import_module("TripoSR.run")
         finally:
             sys.argv = argv_backup
@@ -84,7 +82,6 @@ def main():
         sys.exit(1)
 
     model_path = os.path.join(get_models_dir(), "TripoSR")
-    print("Model path:", model_path, flush=True)
 
     asset_output_dir = os.path.join(viewer_assets_dir, "output")
     os.makedirs(asset_output_dir, exist_ok=True)
@@ -94,27 +91,19 @@ def main():
     print(f"Running TripoSR with image {image_path} → {asset_output_dir}", flush=True)
 
     try:
-        print("before generate", flush=True)
         run_triposr(image_path, model_path, asset_output_dir)
-        print("after generate", flush=True)
 
         if os.path.exists(asset_path):
-            print("Asset path:", asset_path, flush=True)
-
             final_path = os.path.join(viewer_assets_dir, "generated_model.obj")
-            print(f"[DEBUG] obj_model_path exists: {os.path.exists(asset_path)}", flush=True)
-            print(f"[DEBUG] Copying to final_path: {final_path}", flush=True)
             try:
                 if os.path.exists(final_path):
                     os.remove(final_path)
                 shutil.copy(asset_path, final_path)
-                print(f"[DEBUG] Copied model to: {final_path}", flush=True)
             except Exception as copy_err:
                 print(f"[ERROR] Failed to copy model: {copy_err}", flush=True)
 
             with open(output_json, "w") as f:
                 json.dump({"model_path": final_path}, f)
-            print(f"Model path written to: {output_json}", flush=True)
         else:
             print("Model file not found after generation.", flush=True)
             with open(output_json, "w") as f:
