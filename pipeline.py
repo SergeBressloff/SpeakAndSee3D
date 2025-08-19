@@ -1,10 +1,10 @@
 import subprocess, tempfile, json, os, sys
 from utils import get_app_dir
 
-# Determine base path
+# Determine base path to main app
 base_path = get_app_dir()
-print("Base path:", base_path)
 
+# Find diffuse and generate executables next to main app
 diffuse_exe = os.path.join(base_path, "diffuse_nui.exe")
 generate_exe = os.path.join(base_path, "generate_nui.exe")
 
@@ -24,7 +24,6 @@ class Pipeline:
         }
         diffuse_output = self.run_stage(diffuse_exe, diffuse_input)
         image_path = diffuse_output.get("image_path")
-        print("Image path:", image_path)
 
         if not os.path.exists(image_path):
             raise RuntimeError("Image generation failed")
@@ -33,7 +32,6 @@ class Pipeline:
         generate_input = { "image_path": image_path }
         generate_output = self.run_stage(generate_exe, generate_input)
         model_path = generate_output.get("model_path")
-        print("Model path:", model_path)
 
         if not os.path.exists(model_path):
             raise RuntimeError("3D model generation failed")

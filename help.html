@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Help — Speak &amp; See 3D</title>
+  <style type="text/css">
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 14px; color: #111; background: #fff; margin: 0; padding: 0; }
+    .container { width: 100%; max-width: 680px; margin: 0 auto; padding: 20px 16px 20px 16px; box-sizing: border-box; }
+    .padding { color: #fff;}
+    h1 { font-size: 20px; margin: 0 0 8px 0; padding-top: 8px; }
+    h2 { font-size: 16px; margin: 20px 0 12px 0; border-bottom: 1px solid #e5e5e5; padding-bottom: 6px; }
+    p { margin: 8px 0; }
+    .note { background: #fafafa; border: 1px solid #e5e5e5; padding: 8px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 6px; }
+    th, td { border: 1px solid #e5e5e5; text-align: left; padding: 6px; vertical-align: top; }
+    th { background: #fbfbfd; }
+    .kbd { border: 1px solid #cfd6e4; background: #f6f7f9; padding: 1px 5px; font-family: "Courier New", Courier, monospace; font-size: 13px; }
+    .keys { white-space: nowrap; }
+    ul { margin: 6px 0 6px 18px; padding: 0;}
+    .footer { margin: 12px 0 12px 0; color: #666; font-size: 13px; }
+    a { color: #3165ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="padding">
+      <p><span>&shy;</span></p>
+    </div>
+    <h1>Quick Start &amp; Shortcuts</h1>
+
+    <div class="note">
+      Tip: You can press <span class="kbd">F1</span> anywhere in the app to open this Help. 
+      When typing in a text box, the global shortcuts are paused until you exit typing mode.
+    </div>
+
+    <h2>Quick Start</h2>
+    <p>Use <span class="kbd">←</span> and <span class="kbd">→</span> to switch between Load and Generate.</p>
+    <p><b>Load mode</b> lets you browse existing 3D models.</p>
+    <ul>
+      <li>Press <span class="kbd">T</span> to enter text input.</li>
+      <li>Type your prompt and press <span class="kbd">Enter</span> to search.</li>
+      <li>Press <span class="kbd">D</span> to delete the current 3D model.</li>
+    </ul>
+    <p><b>Generate mode</b> lets you create new 3D content via prompts.</p>
+    <ul>
+      <li>Use <span class="kbd">↑</span> and <span class="kbd">↓</span> to cycle diffusion models.</li>
+      <li>Press <span class="kbd">Space</span> any time (when not typing) to start/stop voice recording.</p>
+      <li>Press <span class="kbd">S</span> to save the generated 3D model.</li>
+    </ul>
+
+    <h2>Keyboard Shortcuts</h2>
+    <table>
+      <tr><th style="width:28%">Key</th><th style="width:28%">Context</th><th>Action</th></tr>
+      <tr><td class="keys"><span class="kbd">Space</span></td><td>Global</td><td>Start/stop voice recording</td></tr>
+      <tr><td class="keys"><span class="kbd">T</span></td><td>Global</td><td>Enter text input</td></tr>
+      <tr><td class="keys"><span class="kbd">Enter</span></td><td>When typing</td><td>Search / Run</td></tr>
+      <tr><td class="keys"><span class="kbd">Esc</span></td><td>When typing</td><td>Exit text input</td></tr>
+      <tr><td class="keys"><span class="kbd">←</span> <span class="kbd">→</span></td><td>Global</td><td>Toggle Load / Generate mode</td></tr>
+      <tr><td class="keys"><span class="kbd">↑</span> <span class="kbd">↓</span></td><td>Generate mode</td><td>Cycle diffusion models</td></tr>
+      <tr><td class="keys"><span class="kbd">S</span></td><td>Generate mode</td><td>Save generated 3D model</td></tr>
+      <tr><td class="keys"><span class="kbd">C</span></td><td>Generate mode</td><td>Open generation configuration</td></tr>
+      <tr><td class="keys"><span class="kbd">D</span></td><td>Load mode</td><td>Delete current 3D model</td></tr>
+      <tr><td class="keys"><span class="kbd">U</span></td><td>Global</td><td>Upload a 3D model</td></tr>
+      <tr><td class="keys"><span class="kbd">V</span></td><td>Global</td><td>View names and descriptions of saved 3D models</td></tr>
+      <tr><td class="keys"><span class="kbd">F1</span></td><td>Global</td><td>Open Help</td></tr>
+      <tr><td class="keys"><span class="kbd">I</span></td><td>Global</td><td>Open Info</td></tr>
+      <tr><td class="keys"><span class="kbd">L</span></td><td>Global</td><td>Toggle lighting</td></tr>
+    </table>
+    <p>You can also click outside the text box to leave typing mode.</p>
+
+    <h2>Tips</h2>
+    <ul>
+      <li>If a shortcut doesn’t work, make sure the focus isn’t inside a text field.</li>
+      <li>Voice input requires microphone access on your system.</li>
+      <li>3D models are saved next to the main executable in: data\viewer_assets\3d_assets.</li>
+      <li>If running on CPU, use LCM_Dreamshaper_v7 image diffusion.</li>
+      <li>If running on GPU, use flux_1_schnell image diffusion.</li>
+    </ul>
+
+    <h2>Troubleshooting</h2>
+    <ul>
+      <li><b>No audio captured?</b> Check your OS microphone permissions and input device selection.</li>
+      <li><b>Can’t switch modes?</b> Ensure you’re not in typing mode (press <span class="kbd">Esc</span>).</li>
+    </ul>
+
+    <h2>About</h2>
+    <div class="footer">
+      <p><b>Speak &amp; See 3D</b> — speech and text prompted 3D model generation.</p>
+    </div>
+
+    <div class="padding">
+      <p><span>&shy;</span></p>
+    </div>
+    
+  </div>
+</body>
+</html>

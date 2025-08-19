@@ -1,1 +1,5 @@
+<<<<<<< HEAD
  a 3D model of a Roman Emperor.
+=======
+ A 3D model of a horse.
+>>>>>>> 361854c983b56f91cfde451ae54b2a18eba50395
