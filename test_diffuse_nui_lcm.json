@@ -1,5 +1,5 @@
 {
-  "prompt": "A futuristic city skyline at sunset, cinematic lighting",
+  "prompt": "A 3D model of a shark",
   "model_name": "LCM_Dreamshaper_v7",
   "pipeline": "auto",
   "steps": 20,
