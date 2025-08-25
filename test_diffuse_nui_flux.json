@@ -1,0 +1,8 @@
+{
+  "prompt": "A 3D model of a shark",
+  "model_name": "flux_1_schnell",
+  "steps": 4,
+  "guidance_scale": 0,
+  "negative_prompt": "blurry, low resolution, bad anatomy",
+  "seed": 0
+}

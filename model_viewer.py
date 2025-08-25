@@ -8,24 +8,19 @@ class ModelViewer(QWebEngineView):
         super().__init__(parent)
 
         viewer_assets_dir = get_viewer_assets()
-        print("Viewer_assets_dir:", viewer_assets_dir)
 
         local_html_path = os.path.join(viewer_assets_dir, "index.html")
-        print("local html path:", local_html_path)
         if not os.path.exists(local_html_path):
             raise FileNotFoundError("Missing HTML viewer at: " + local_html_path)
 
-        # Pass model path as query param or inject via JS if needed
         self.load(QUrl.fromLocalFile(local_html_path))
 
 
-    # model_viewer.py (add inside ModelViewer class)
     def load_model(self, model_filename):
         if not os.path.isfile(model_filename):
             print(f"Model file does not exist: {model_filename}")
             return
         model_url = QUrl.fromLocalFile(model_filename).toString()
-        print("model_url: ", model_url)
         js_code = f"""
         if (typeof loadModel === 'function') {{
             loadModel('{model_url}');
@@ -42,5 +37,16 @@ class ModelViewer(QWebEngineView):
         } else {
             console.error('clearModel function not found in page');
         }
+        """
+        self.page().runJavaScript(js_code)
+
+    def set_theme(self, mode: str):
+        mode = "light" if str(mode).lower() == "light" else "dark"
+        js_code = f"""
+        if (typeof setTheme === 'function') {{
+            setTheme('{mode}');
+        }} else {{
+            console.error('setTheme function not found in page');
+        }}
         """
         self.page().runJavaScript(js_code)
