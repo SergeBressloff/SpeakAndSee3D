@@ -18,7 +18,13 @@ def main():
 
     audio_path = input_data.get("audio_path")
     if not audio_path or not os.path.exists(audio_path):
-        print(f"Invalid or missing audio file: {audio_path}")
+        msg = f"Invalid or missing audio file: {audio_path}"
+        print(msg, flush=True)
+        try:
+            with open(output_json, "w") as f:
+                json.dump({"error": msg}, f)
+        except Exception:
+            pass
         sys.exit(1)
 
     if getattr(sys, 'frozen', False):

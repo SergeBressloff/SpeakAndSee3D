@@ -12,11 +12,11 @@ if not os.path.exists(diffuse_exe) or not os.path.exists(generate_exe):
     print("[ERROR] Diffuse and generate executables need to be in the same folder as the main app.") 
 
 class Pipeline:
-    def run_pipeline(self, text, model_name="onnx-stable-diffusion-2-1", cfg=None):
+    def run_pipeline(self, text, model_name, cfg=None):
         print("Running pipeline")
         cfg = cfg or {}
 
-        # Step 1: Diffuse image
+        # Diffuse image
         diffuse_input = { 
             "prompt": text,
             "model_name": model_name,
@@ -28,7 +28,7 @@ class Pipeline:
         if not os.path.exists(image_path):
             raise RuntimeError("Image generation failed")
 
-        # Step 2: Generate 3D
+        # Generate 3D
         generate_input = { "image_path": image_path }
         generate_output = self.run_stage(generate_exe, generate_input)
         model_path = generate_output.get("model_path")
