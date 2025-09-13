@@ -37,12 +37,12 @@ A key goal for Speak & See 3D is accessibility. Developed in consultation with t
   - **Image-to-3D Reconstruction**: [TripoSR](https://github.com/ashawkey/TripoSR)
   - GPU-accelerated versions available for diffusion and generation steps
 
-<img src="https://github.com/user-attachments/assets/71625d50-c0e8-4e56-b1fb-8d1e339c15a7" alt="Pipeline Overview" width="500"/>
+<img src="https://github.com/user-attachments/assets/71625d50-c0e8-4e56-b1fb-8d1e339c15a7" alt="Pipeline Overview" width="950"/>
 
 - **Frontend**: Built with PySide6 for a native desktop experience.
 - **3D Viewer**: Embedded Three.js renderer for interactive asset viewing.
 
-<img src="https://github.com/user-attachments/assets/ac40f135-a8fd-419b-98ae-93a488c5bdf9" alt="Frontend Overview" width="500"/>
+<img src="https://github.com/user-attachments/assets/ac40f135-a8fd-419b-98ae-93a488c5bdf9" alt="Frontend Overview" width="950"/>
 
 ## Usage
 
