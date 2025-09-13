@@ -41,10 +41,10 @@ A key goal for Speak & See 3D is accessibility. Developed in consultation with t
 ## Screenshots
 
 - **Main Interface**  
-  ![image1](image1)
+  
 
 - **Generated Elephant Model**  
-  ![image2](image2)
+
 
 - **Generated Tree Model**  
   ![image3](image3)
