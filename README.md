@@ -29,8 +29,13 @@ A key goal for Speak & See 3D is accessibility. Developed in consultation with t
   - Speech transcription
   - Text-to-image diffusion
   - Image-to-3D reconstruction
+
+<img width="1514" height="647" alt="Image" src="https://github.com/user-attachments/assets/71625d50-c0e8-4e56-b1fb-8d1e339c15a7" />
+
 - **Frontend**: Built with PySide6 for a native desktop experience.
 - **3D Viewer**: Embedded Three.js renderer for interactive asset viewing.
+
+<img width="1440" height="495" alt="Image" src="https://github.com/user-attachments/assets/ac40f135-a8fd-419b-98ae-93a488c5bdf9" />
 
 ## Usage
 
