@@ -39,7 +39,7 @@ A key goal for Speak & See 3D is accessibility. Developed in consultation with t
 
 ## Usage
 
-1. **Describe a Model**: Type or speak a description of the 3D asset you want to create (e.g., "elephant", "a tree", "3D model of a dinosaur").
+1. **Describe a Model**: Type or speak a description of the 3D asset you want to create (e.g., "elephant", "a tree", "a human heart").
 2. **Generate**: Click "Generate" to start the pipeline.
 3. **View & Interact**: The generated 3D model appears in the embedded viewer; interact with it directly in the app.
 
