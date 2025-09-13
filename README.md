@@ -2,6 +2,8 @@
 
 Speak & See 3D is an innovative application that generates 3D assets from natural language prompts. Designed for accessibility and creative content generation, it integrates speech transcription, text-to-image diffusion, and image-to-3D reconstruction in a modular pipeline for ease of use and extensibility.
 
+<img src="https://github.com/user-attachments/assets/65d31457-cd14-4b31-90e8-41955f36b696" alt="Heart Model" width="950" />
+
 ## Table of Contents
 
 - [Features](#features)
@@ -14,7 +16,11 @@ Speak & See 3D is an innovative application that generates 3D assets from natura
 ## Features
 
 - **Natural Language to 3D Asset Creation**: Generate 3D models by describing them in speech or text.
-- **Modular Pipeline**: Independent executables for each stage—speech transcription, text-to-image diffusion, and image-to-3D reconstruction.
+- **Modular Pipeline**: Each stage uses state-of-the-art open-source models:
+  - **Speech Transcription**: [whisper.cpp](https://github.com/ggerganov/whisper.cpp) for fast, local speech-to-text.
+  - **Text-to-Image Diffusion**: [Flux.1 (Schnell)](https://huggingface.co/flux-ai/flux-1-schnell) for high-quality image generation.
+  - **Image-to-3D Reconstruction**: [TripoSR](https://github.com/ashawkey/TripoSR) for accurate 3D asset creation.
+- **GPU Acceleration**: GPU-compatible versions of the Diffuse and Generate executables are available for faster performance.
 - **Locally Executed AI**: No reliance on cloud infrastructure; runs efficiently on consumer hardware.
 - **Accessible Frontend**: PySide6-based desktop interface, with embedded Three.js viewer for smooth 3D rendering and interaction.
 - **Extensible**: Easily swap or upgrade diffusion techniques and pipeline modules.
@@ -26,9 +32,10 @@ A key goal for Speak & See 3D is accessibility. Developed in consultation with t
 ## Architecture
 
 - **Pipeline Components**: Independently compiled Python executables (via Nuitka), each handling a separate stage:
-  - Speech transcription
-  - Text-to-image diffusion
-  - Image-to-3D reconstruction
+  - **Speech Transcription**: [whisper.cpp](https://github.com/ggerganov/whisper.cpp)
+  - **Text-to-Image Diffusion**: [Flux.1 (Schnell)](https://huggingface.co/flux-ai/flux-1-schnell)
+  - **Image-to-3D Reconstruction**: [TripoSR](https://github.com/ashawkey/TripoSR)
+  - GPU-accelerated versions available for diffusion and generation steps
 
 <img src="https://github.com/user-attachments/assets/71625d50-c0e8-4e56-b1fb-8d1e339c15a7" alt="Pipeline Overview" width="500"/>
 
