@@ -46,6 +46,7 @@ A key goal for Speak & See 3D is accessibility. Developed in consultation with t
 ## Screenshots
 
 <img src="https://github.com/user-attachments/assets/9ee29a5c-dd5c-4bfb-8c09-7c286d1b2fb4" alt="Main Interface" width="400"/>
+<img src="https://github.com/user-attachments/assets/65d31457-cd14-4b31-90e8-41955f36b696" alt="Heart Model" width="400" />
 <img src="https://github.com/user-attachments/assets/53c492ba-312b-4aea-a7c9-ced948185f6c" alt="Elephant Model" width="400"/>
 <img src="https://github.com/user-attachments/assets/37ab1e19-3db6-464d-90fc-3e5ebc34a511" alt="Tree Model" width="400"/>
 
